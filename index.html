@@ -4,394 +4,127 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Life Tasks Dashboard</title>
+  <!-- Optional utility classes; we don’t rely on @apply -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="theme-color" content="#0a0a0a" />
   <link rel="icon" href="data:," />
-  <style>
-    /* Minimal tweaks */
-    .glass { backdrop-filter: blur(8px); background: rgba(255,255,255,0.06);} 
-    .btn {
-      padding-left: 0.75rem;
-      padding-right: 0.75rem;
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
-      border-radius: 0.75rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      border-width: 1px;
-      border-color: rgba(255,255,255,0.10);
-      transition: border-color 0.2s;
-    }
-    .btn:hover {
-      border-color: rgba(255,255,255,0.20);
-    }
-    .card {
-      border-radius: 1rem;
-      border-width: 1px;
-      border-color: rgba(255,255,255,0.10);
-      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    }
-    .tag {
-      font-size: 0.75rem;
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
-      padding-top: 0.25rem;
-      padding-bottom: 0.25rem;
-      border-radius: 9999px;
-      border-width: 1px;
-      border-color: rgba(255,255,255,0.10);
-    }
-  </style>
+  <link rel="stylesheet" href="./styles.css" />
+  <meta name="theme-color" content="#ffffff" />
 </head>
-<body class="min-h-screen bg-neutral-950 text-neutral-100 selection:bg-indigo-500/30">
-  <div class="max-w-6xl mx-auto p-6 lg:p-10">
-    <!-- Header -->
-    <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+<body class="app dark">
+  <div class="container">
+    <header class="header">
       <div>
-        <h1 class="text-3xl md:text-4xl font-bold tracking-tight">Life Tasks Dashboard</h1>
-        <p class="text-neutral-400 mt-1">Quick view of recurring chores with last-done dates and what’s due next.</p>
+        <h1 class="title">Life Tasks Dashboard</h1>
+        <p class="subtitle">Recurring chores with last-done dates & due status.</p>
       </div>
-      <div class="flex items-center gap-2">
-        <button id="addTaskBtn" class="btn bg-white/5">➕ Add Task</button>
-        <button id="exportBtn" class="btn bg-white/5">⤴︎ Export</button>
-        <label class="btn bg-white/5 cursor-pointer">⤵︎ Import
+      <div class="actions">
+        <button id="addTaskBtn" class="btn">➕ Add Task</button>
+        <button id="exportBtn" class="btn">⤴︎ Export</button>
+        <label class="btn cursor-pointer">⤵︎ Import
           <input id="importInput" type="file" accept="application/json" class="hidden" />
         </label>
+        <button id="themeBtn" class="btn" title="Toggle theme">🌓 Theme</button>
       </div>
     </header>
 
-    <!-- Top summary -->
-    <section class="grid sm:grid-cols-3 gap-3 mb-6">
-      <div class="card glass p-4">
-        <div class="text-sm text-neutral-400">Overdue</div>
-        <div id="statOverdue" class="text-2xl font-semibold">0</div>
+    <!-- Stats -->
+    <section class="stats">
+      <div class="card">
+        <div class="muted">Overdue</div>
+        <div id="statOverdue" class="stat-num">0</div>
       </div>
-      <div class="card glass p-4">
-        <div class="text-sm text-neutral-400">Due in 2 days</div>
-        <div id="statSoon" class="text-2xl font-semibold">0</div>
+      <div class="card">
+        <div class="muted">Due in 2 days</div>
+        <div id="statSoon" class="stat-num">0</div>
       </div>
-      <div class="card glass p-4">
-        <div class="text-sm text-neutral-400">Total Active</div>
-        <div id="statTotal" class="text-2xl font-semibold">0</div>
+      <div class="card">
+        <div class="muted">Total Active</div>
+        <div id="statTotal" class="stat-num">0</div>
       </div>
     </section>
 
-    <!-- Controls -->
-    <section class="card glass p-3 mb-4">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <button data-filter="all" class="filterBtn btn bg-white/5">All</button>
-          <button data-filter="overdue" class="filterBtn btn bg-white/5">Overdue</button>
-          <button data-filter="soon" class="filterBtn btn bg-white/5">Due Soon</button>
-          <button data-filter="ok" class="filterBtn btn bg-white/5">OK</button>
-          <button data-filter="completed" class="filterBtn btn bg-white/5">Completed</button>
-        </div>
-        <div class="flex items-center gap-2">
-          <input id="searchInput" type="search" placeholder="Search tasks…" class="w-56 rounded-xl bg-neutral-900 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/40" />
-          <button id="resetBtn" class="btn bg-white/5">Reset Filters</button>
-        </div>
+    <!-- Filters -->
+    <section class="toolbar card">
+      <div class="toolbar-left">
+        <button data-filter="all" class="filterBtn btn">All</button>
+        <button data-filter="overdue" class="filterBtn btn">Overdue</button>
+        <button data-filter="soon" class="filterBtn btn">Due Soon</button>
+        <button data-filter="ok" class="filterBtn btn">OK</button>
+        <button data-filter="completed" class="filterBtn btn">Completed</button>
+      </div>
+      <div class="toolbar-right">
+        <input id="searchInput" type="search" placeholder="Search tasks…" class="input" />
+        <button id="resetBtn" class="btn">Reset</button>
       </div>
     </section>
 
     <!-- Task list -->
-    <section id="taskList" class="grid gap-3"></section>
+    <section id="taskList" class="list"></section>
 
-    <!-- Footer -->
-    <footer class="mt-10 text-neutral-500 text-sm">Local-first. Data is stored in your browser (localStorage). Tip: Press ⌘/Ctrl + D on a task to mark done.
+    <footer class="footer muted">
+      Local-first. Data lives in your browser. Tip: ⌘/Ctrl + D marks the first task done.
     </footer>
   </div>
 
   <!-- Modal -->
-  <dialog id="taskModal" class="rounded-2xl w-full max-w-xl bg-neutral-950 border border-white/10 p-0">
+  <dialog id="taskModal" class="dialog card">
     <form id="taskForm" method="dialog">
-      <div class="p-5 border-b border-white/10">
-        <h2 id="modalTitle" class="text-lg font-semibold">Add Task</h2>
+      <div class="dialog-head">
+        <h2 id="modalTitle" class="dialog-title">Add Task</h2>
       </div>
-      <div class="p-5 grid gap-3">
-        <div class="grid gap-1">
-          <label class="text-sm text-neutral-400">Name</label>
-          <input name="name" required class="rounded-xl bg-neutral-900 border border-white/10 px-3 py-2 outline-none">
-        </div>
-        <div class="grid gap-1">
-          <label class="text-sm text-neutral-400">Frequency (days)</label>
-          <input name="frequencyDays" type="number" min="1" step="1" required class="rounded-xl bg-neutral-900 border border-white/10 px-3 py-2 outline-none">
-        </div>
-        <div class="grid gap-1">
-          <label class="text-sm text-neutral-400">Last done</label>
-          <input name="lastDone" type="date" class="rounded-xl bg-neutral-900 border border-white/10 px-3 py-2 outline-none">
-        </div>
-        <div class="grid gap-1">
-          <label class="text-sm text-neutral-400">Notes (optional)</label>
-          <textarea name="notes" rows="2" class="rounded-xl bg-neutral-900 border border-white/10 px-3 py-2 outline-none"></textarea>
-        </div>
-        <div class="flex items-center gap-4 pt-1">
-          <label class="flex items-center gap-2 text-sm"><input name="pinned" type="checkbox" class="accent-indigo-500"> Pinned</label>
-          <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked class="accent-indigo-500"> Active</label>
+      <div class="dialog-body">
+        <label class="field">
+          <span class="label">Name</span>
+          <input name="name" required class="input">
+        </label>
+        <label class="field">
+          <span class="label">Frequency (days)</span>
+          <input name="frequencyDays" type="number" min="1" step="1" required class="input">
+        </label>
+        <label class="field">
+          <span class="label">Last done</span>
+          <input name="lastDone" type="date" class="input">
+        </label>
+        <label class="field">
+          <span class="label">Notes (optional)</span>
+          <textarea name="notes" rows="2" class="input"></textarea>
+        </label>
+        <div class="toggles">
+          <label class="check"><input name="pinned" type="checkbox"> Pinned</label>
+          <label class="check"><input name="active" type="checkbox" checked> Active</label>
         </div>
       </div>
-      <div class="p-4 flex justify-end gap-2 border-t border-white/10">
-        <button value="cancel" class="btn bg-white/5">Cancel</button>
-        <button id="saveBtn" value="save" class="btn bg-indigo-500/20 border-indigo-500/30">Save</button>
+      <div class="dialog-foot">
+        <!-- These values make method='dialog' close the modal with returnValue -->
+        <button type="submit" value="cancel" class="btn">Cancel</button>
+        <button id="saveBtn" type="submit" value="save" class="btn primary">Save</button>
       </div>
       <input type="hidden" name="id">
     </form>
   </dialog>
 
   <template id="taskCardTpl">
-    <div class="card glass p-4">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <h3 class="font-semibold text-lg truncate name"></h3>
+    <div class="card item">
+      <div class="item-top">
+        <div class="item-main">
+          <div class="item-line">
+            <h3 class="name"></h3>
             <span class="tag statusTag"></span>
-            <span class="tag hidden completedTag">Completed today</span>
-            <span class="tag hidden pinnedTag">Pinned</span>
+            <span class="tag pinnedTag hidden">Pinned</span>
+            <span class="tag completedTag hidden">Completed today</span>
           </div>
-          <div class="text-sm text-neutral-400 mt-1 details"></div>
-          <div class="text-xs text-neutral-500 notes mt-1"></div>
+          <div class="muted details"></div>
+          <div class="xsmall notes hidden"></div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button class="btn bg-white/5 markBtn">Mark Done</button>
-          <button class="btn bg-white/5 editBtn">Edit</button>
-          <button class="btn bg-white/5 danger deleteBtn">Delete</button>
+        <div class="item-actions">
+          <button class="btn markBtn">Mark Done</button>
+          <button class="btn editBtn">Edit</button>
+          <button class="btn danger deleteBtn">Delete</button>
         </div>
       </div>
     </div>
   </template>
 
-  <script>
-  // --- Local-first storage
-  const STORAGE_KEY = 'lifeDash.tasks.v1';
-  const todayISO = () => new Date().toISOString().slice(0,10);
-  const parseDate = (iso) => iso ? new Date(iso + 'T00:00:00') : null;
-  const daysBetween = (a, b) => Math.floor((a - b) / (1000*60*60*24));
-
-  /** @type {Array<{id:string,name:string,frequencyDays:number,lastDone?:string,notes?:string,pinned?:boolean,active?:boolean, lastCompleted?:string}>} */
-  let tasks = [];
-
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      tasks = raw ? JSON.parse(raw) : seed();
-    } catch { tasks = seed(); }
-  }
-  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
-
-  function seed(){
-    const sample = [
-      { id: crypto.randomUUID(), name:'Wash sheets', frequencyDays:7, lastDone: todayISO(), pinned:true, active:true, notes:'Rotate pillowcases' },
-      { id: crypto.randomUUID(), name:'Laundry', frequencyDays:5, lastDone: todayISO(), active:true },
-      { id: crypto.randomUUID(), name:'Clean kitchen', frequencyDays:2, lastDone: todayISO(), active:true },
-      { id: crypto.randomUUID(), name:'Vacuum', frequencyDays:7, active:true },
-      { id: crypto.randomUUID(), name:'Take out trash', frequencyDays:2, active:true }
-    ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
-    return sample;
-  }
-
-  // --- UI state
-  const listEl = document.getElementById('taskList');
-  const tpl = document.getElementById('taskCardTpl');
-  const modal = document.getElementById('taskModal');
-  const form = document.getElementById('taskForm');
-  const modalTitle = document.getElementById('modalTitle');
-  const addBtn = document.getElementById('addTaskBtn');
-  const exportBtn = document.getElementById('exportBtn');
-  const importInput = document.getElementById('importInput');
-  const searchInput = document.getElementById('searchInput');
-  const resetBtn = document.getElementById('resetBtn');
-  const statOverdue = document.getElementById('statOverdue');
-  const statSoon = document.getElementById('statSoon');
-  const statTotal = document.getElementById('statTotal');
-  const filterBtns = Array.from(document.querySelectorAll('.filterBtn'));
-
-  let filter = 'all';
-  let q = '';
-
-  function compute(task){
-    const now = parseDate(todayISO());
-    const last = parseDate(task.lastDone);
-    const since = last ? daysBetween(now, last) : Number.POSITIVE_INFINITY;
-    const dueIn = isFinite(since) ? Math.max(task.frequencyDays - since, -9999) : -9999;
-    let status = 'ok';
-    if (dueIn <= 0) status = 'overdue';
-    else if (dueIn <= 2) status = 'soon';
-    return { since, dueIn, status };
-  }
-
-  function statusLabel(status, dueIn){
-    if (status === 'overdue') return `Overdue by ${Math.abs(dueIn)}d`;
-    if (status === 'soon') return `Due in ${dueIn}d`;
-    return 'On track';
-  }
-
-  function detailsText(task, meta){
-    const last = task.lastDone ? new Date(task.lastDone).toLocaleDateString() : '—';
-    const freq = `${task.frequencyDays}d cadence`;
-    const since = isFinite(meta.since) ? `${meta.since}d since` : 'never done';
-    return `${freq} • Last done: ${last} • ${since}`;
-  }
-
-  function render(){
-    // Filter/sort
-    const items = tasks
-      .map(t=>({ t, m: compute(t) }))
-      .filter(({t,m})=>{
-        const matchesQ = !q || t.name.toLowerCase().includes(q);
-        const matchesActive = filter === 'completed' ? !!t.lastCompleted && t.lastCompleted === todayISO() : (t.active ?? true);
-        let matchesFilter = true;
-        if (filter === 'overdue') matchesFilter = m.status === 'overdue';
-        else if (filter === 'soon') matchesFilter = m.status === 'soon';
-        else if (filter === 'ok') matchesFilter = m.status === 'ok';
-        else if (filter === 'completed') matchesFilter = !!t.lastCompleted && t.lastCompleted === todayISO();
-        return matchesQ && matchesFilter;
-      })
-      .sort((a,b)=>{
-        // pinned first
-        if ((b.t.pinned|0) - (a.t.pinned|0)) return (b.t.pinned|0) - (a.t.pinned|0);
-        // status severity: overdue > soon > ok
-        const rank = s=> s==='overdue'?2 : s==='soon'?1 : 0;
-        const r = rank(b.m.status) - rank(a.m.status);
-        if (r) return r;
-        // then by dueIn ascending
-        if (a.m.dueIn !== b.m.dueIn) return a.m.dueIn - b.m.dueIn;
-        // then by name
-        return a.t.name.localeCompare(b.t.name);
-      });
-
-    // Stats
-    const active = tasks.filter(t=> t.active ?? true);
-    statTotal.textContent = active.length;
-    statOverdue.textContent = active.filter(t=> compute(t).status==='overdue').length;
-    statSoon.textContent = active.filter(t=> compute(t).status==='soon').length;
-
-    // List
-    listEl.innerHTML = '';
-    if (!items.length){
-      listEl.innerHTML = `<div class="text-center text-neutral-400 py-12">No tasks here. Try changing filters or adding a task.</div>`;
-      return;
-    }
-
-    for (const {t, m} of items){
-      const node = tpl.content.firstElementChild.cloneNode(true);
-      node.querySelector('.name').textContent = t.name;
-      node.querySelector('.details').textContent = detailsText(t,m);
-      const notes = node.querySelector('.notes');
-      notes.textContent = t.notes || '';
-      notes.classList.toggle('hidden', !t.notes);
-
-      const statusTag = node.querySelector('.statusTag');
-      statusTag.textContent = statusLabel(m.status, m.dueIn);
-      statusTag.classList.toggle('border-red-500/40', m.status==='overdue');
-      statusTag.classList.toggle('text-red-400', m.status==='overdue');
-      statusTag.classList.toggle('border-yellow-500/40', m.status==='soon');
-      statusTag.classList.toggle('text-yellow-300', m.status==='soon');
-      statusTag.classList.toggle('border-emerald-500/40', m.status==='ok');
-      statusTag.classList.toggle('text-emerald-300', m.status==='ok');
-
-      node.querySelector('.pinnedTag').classList.toggle('hidden', !t.pinned);
-      const completedToday = t.lastCompleted === todayISO();
-      node.querySelector('.completedTag').classList.toggle('hidden', !completedToday);
-
-      node.querySelector('.markBtn').addEventListener('click', ()=> markDone(t.id));
-      node.querySelector('.editBtn').addEventListener('click', ()=> openModal(t));
-      node.querySelector('.deleteBtn').addEventListener('click', ()=> del(t.id));
-
-      listEl.appendChild(node);
-    }
-  }
-
-  function markDone(id){
-    const t = tasks.find(x=>x.id===id);
-    if (!t) return;
-    t.lastDone = todayISO();
-    t.lastCompleted = todayISO();
-    save();
-    render();
-  }
-
-  function del(id){
-    if (!confirm('Delete this task?')) return;
-    tasks = tasks.filter(t=> t.id !== id);
-    save(); render();
-  }
-
-  function openModal(task){
-    modal.showModal();
-    form.reset();
-    if (task){
-      modalTitle.textContent = 'Edit Task';
-      form.name.value = task.name;
-      form.frequencyDays.value = task.frequencyDays;
-      form.lastDone.value = task.lastDone || '';
-      form.notes.value = task.notes || '';
-      form.pinned.checked = !!task.pinned;
-      form.active.checked = task.active ?? true;
-      form.id.value = task.id;
-    } else {
-      modalTitle.textContent = 'Add Task';
-      form.lastDone.value = todayISO();
-      form.active.checked = true;
-      form.id.value = '';
-    }
-  }
-
-  function upsertFromForm(){
-    const data = Object.fromEntries(new FormData(form).entries());
-    const item = {
-      id: data.id || crypto.randomUUID(),
-      name: String(data.name).trim(),
-      frequencyDays: Math.max(1, parseInt(data.frequencyDays||'1',10)),
-      lastDone: data.lastDone||'',
-      notes: String(data.notes||'').trim(),
-      pinned: !!data.pinned,
-      active: !!data.active,
-      lastCompleted: undefined
-    };
-    const idx = tasks.findIndex(t=> t.id === item.id);
-    if (idx >= 0) tasks[idx] = {...tasks[idx], ...item}; else tasks.push(item);
-    save(); render();
-  }
-
-  // --- Events
-  addBtn.addEventListener('click', ()=> openModal());
-  form.addEventListener('close', ()=>{});
-  form.addEventListener('submit', (e)=>{ e.preventDefault(); });
-  document.getElementById('saveBtn').addEventListener('click', ()=>{ upsertFromForm(); modal.close(); });
-  document.addEventListener('keydown', (e)=>{
-    if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='d'){
-      const first = tasks.sort((a,b)=> a.name.localeCompare(b.name))[0];
-      if (first) { markDone(first.id); }
-    }
-  });
-
-  exportBtn.addEventListener('click', ()=>{
-    const blob = new Blob([JSON.stringify(tasks, null, 2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'life-tasks-export.json';
-    a.click();
-  });
-  importInput.addEventListener('change', async (e)=>{
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    try {
-      const data = JSON.parse(text);
-      if (!Array.isArray(data)) throw new Error('Invalid format');
-      tasks = data;
-      save(); render();
-    } catch(err){ alert('Import failed: ' + err.message); }
-    finally { importInput.value = ''; }
-  });
-
-  filterBtns.forEach(b=> b.addEventListener('click', ()=>{ filter = b.dataset.filter; render(); }));
-  resetBtn.addEventListener('click', ()=>{ filter='all'; q=''; searchInput.value=''; render(); });
-  searchInput.addEventListener('input', ()=>{ q = searchInput.value.trim().toLowerCase(); render(); });
-
-  // --- Init
-  load();
-  render();
-  </script>
+  <script src="./script.js" type="module"></script>
 </body>
 </html>
