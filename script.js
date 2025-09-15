@@ -1,3 +1,5 @@
+// Apartment Dashboard - Collaborative Chore Tracker
+// For roommates: add comments, use clear commits, update README for new features
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 if (settingsBtn && settingsModal) {
