@@ -1,3 +1,14 @@
+const toast = document.getElementById('toast');
+let toastTimeout = null;
+function showToast(msg) {
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.display = 'flex';
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.style.display = 'none';
+  }, 2500);
+}
 const ACCENT_KEY = 'lifeDash.accent';
 const accentColorPicker = document.getElementById('accentColorPicker');
 function setAccentColor(color) {
@@ -232,21 +243,30 @@ function upsertFromForm(){
     lastCompleted: undefined
   };
   const idx = tasks.findIndex(t=> t.id === item.id);
-  if (idx >= 0) tasks[idx] = {...tasks[idx], ...item};
-  else tasks.push(item);
+  if (idx >= 0) {
+    tasks[idx] = {...tasks[idx], ...item};
+    showToast('Task updated');
+  } else {
+    tasks.push(item);
+    showToast('Task added');
+  }
   save(); render();
 }
 function delTask(id){
   if (!confirm('Delete this task?')) return;
   tasks = tasks.filter(t=> t.id !== id);
-  save(); render();
+  save();
+  render();
+  showToast('Task deleted');
 }
 function markDone(id){
   const t = tasks.find(x=>x.id===id);
   if(!t) return;
   t.lastDone = todayISO();
   t.lastCompleted = todayISO();
-  save(); render();
+  save();
+  render();
+  showToast('Task marked done');
 }
 
 // Events

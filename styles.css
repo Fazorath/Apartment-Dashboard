@@ -1,3 +1,17 @@
+.toast {
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 1.5em;
+  padding: 0.75em 1.5em;
+  font-size: 1rem;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  animation: fadeInCard 0.35s cubic-bezier(.4,1.4,.6,1) forwards;
+  pointer-events: none;
+}
 /* Theme vars */
 :root{
   /* DARK is now default */
