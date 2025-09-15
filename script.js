@@ -30,6 +30,37 @@ const exportBtn = document.getElementById('exportBtn');
 const importInput = document.getElementById('importInput');
 const searchInput = document.getElementById('searchInput');
 const resetBtn = document.getElementById('resetBtn');
+const markAllDoneBtn = document.getElementById('markAllDoneBtn');
+const clearCompletedBtn = document.getElementById('clearCompletedBtn');
+// Quick Actions
+if (markAllDoneBtn) {
+  markAllDoneBtn.addEventListener('click', () => {
+    const today = todayISO();
+    let changed = false;
+    tasks.forEach(t => {
+      if ((t.active ?? true) && (!t.lastCompleted || t.lastCompleted !== today)) {
+        t.lastDone = today;
+        t.lastCompleted = today;
+        changed = true;
+      }
+    });
+    if (changed) { save(); render(); }
+  });
+}
+
+if (clearCompletedBtn) {
+  clearCompletedBtn.addEventListener('click', () => {
+    const today = todayISO();
+    let changed = false;
+    tasks.forEach(t => {
+      if (t.lastCompleted === today) {
+        t.lastCompleted = undefined;
+        changed = true;
+      }
+    });
+    if (changed) { save(); render(); }
+  });
+}
 const themeBtn = document.getElementById('themeBtn');
 const statOverdue = document.getElementById('statOverdue');
 const statSoon = document.getElementById('statSoon');
@@ -113,7 +144,17 @@ function render(){
   // List
   listEl.innerHTML = '';
   if (!items.length){
-    listEl.innerHTML = `<div class="muted" style="text-align:center;padding:3rem 0;">No tasks. Add one!</div>`;
+    listEl.innerHTML = `
+      <div class="empty-state" style="text-align:center;padding:3rem 0;display:flex;flex-direction:column;align-items:center;gap:1.5rem;">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="20" width="60" height="40" rx="8" fill="var(--panel)" stroke="var(--border)" stroke-width="2"/>
+          <rect x="22" y="32" width="36" height="8" rx="2" fill="var(--muted)"/>
+          <rect x="22" y="44" width="24" height="6" rx="2" fill="var(--muted)"/>
+          <circle cx="40" cy="60" r="4" fill="var(--primary)"/>
+        </svg>
+        <div class="muted" style="font-size:1.1rem;">No tasks yet! Click <b>Add Task</b> to get started.</div>
+      </div>
+    `;
     return;
   }
   for (const {t,m} of items){
