@@ -1,3 +1,24 @@
+const ACCENT_KEY = 'lifeDash.accent';
+const accentColorPicker = document.getElementById('accentColorPicker');
+function setAccentColor(color) {
+  document.documentElement.style.setProperty('--primary', color);
+  localStorage.setItem(ACCENT_KEY, color);
+}
+if (accentColorPicker) {
+  const saved = localStorage.getItem(ACCENT_KEY);
+  const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-default').trim() || '#4f46e5';
+  accentColorPicker.value = saved || defaultColor;
+  setAccentColor(accentColorPicker.value);
+  accentColorPicker.addEventListener('input', (e) => {
+    setAccentColor(e.target.value);
+  });
+}
+const cancelBtn = document.getElementById('cancelBtn');
+if (cancelBtn) {
+  cancelBtn.addEventListener('click', () => {
+    modal.close();
+  });
+}
 // Storage + utils
 const STORAGE_KEY = 'lifeDash.tasks.v1';
 const THEME_KEY = 'lifeDash.theme';
@@ -26,8 +47,6 @@ const modal = document.getElementById('taskModal');
 const form = document.getElementById('taskForm');
 const tpl = document.getElementById('taskCardTpl');
 const addBtn = document.getElementById('addTaskBtn');
-const exportBtn = document.getElementById('exportBtn');
-const importInput = document.getElementById('importInput');
 const searchInput = document.getElementById('searchInput');
 const resetBtn = document.getElementById('resetBtn');
 const markAllDoneBtn = document.getElementById('markAllDoneBtn');
@@ -232,23 +251,6 @@ function markDone(id){
 
 // Events
 addBtn.addEventListener('click', ()=> openModal());
-exportBtn.addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify(tasks, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'life-tasks-export.json';
-  a.click();
-});
-importInput.addEventListener('change', async (e)=>{
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try {
-    const data = JSON.parse(await file.text());
-    if (!Array.isArray(data)) throw new Error('Invalid format');
-    tasks = data; save(); render();
-  } catch (err){ alert('Import failed: ' + err.message); }
-  finally { importInput.value = ''; }
-});
 document.addEventListener('keydown', (e)=>{
   if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='d'){
     const first = tasks.slice().sort((a,b)=> a.name.localeCompare(b.name))[0];

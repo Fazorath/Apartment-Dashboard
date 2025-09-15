@@ -19,9 +19,9 @@
       </div>
       <div class="actions">
         <button id="addTaskBtn" class="btn">➕ Add Task</button>
-        <button id="exportBtn" class="btn">⤴︎ Export</button>
-        <label class="btn cursor-pointer">⤵︎ Import
-          <input id="importInput" type="file" accept="application/json" class="hidden" />
+        <label class="btn" style="padding:0 .5rem;display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:1.1em;">🎨</span>
+          <input id="accentColorPicker" type="color" title="Pick accent color" />
         </label>
         <button id="themeBtn" class="btn" title="Toggle theme">🌓 Theme</button>
       </div>
@@ -98,7 +98,7 @@
       </div>
       <div class="dialog-foot">
         <!-- These values make method='dialog' close the modal with returnValue -->
-        <button type="submit" value="cancel" class="btn">Cancel</button>
+  <button type="button" id="cancelBtn" class="btn">Cancel</button>
         <button id="saveBtn" type="submit" value="save" class="btn primary">Save</button>
       </div>
       <input type="hidden" name="id">
