@@ -194,23 +194,29 @@ function render(){
   }
   for (const {t,m} of items){
     const node = tpl.content.firstElementChild.cloneNode(true);
-    node.querySelector('.name').textContent = t.name;
-    node.querySelector('.details').textContent = detailsText(t,m);
-    const notesEl = node.querySelector('.notes');
-    if (t.notes) { notesEl.textContent = t.notes; notesEl.classList.remove('hidden'); }
-
-    const statusTag = node.querySelector('.statusTag');
-    statusTag.textContent = statusLabel(m.status, m.dueIn);
-    statusTag.classList.add(m.status === 'overdue' ? 'red' : m.status === 'soon' ? 'yellow' : 'green');
-
-    node.querySelector('.pinnedTag').classList.toggle('hidden', !t.pinned);
-    node.querySelector('.completedTag').classList.toggle('hidden', t.lastCompleted !== todayISO());
-
-    node.querySelector('.markBtn').addEventListener('click', ()=> markDone(t.id));
-    node.querySelector('.editBtn').addEventListener('click', ()=> openModal(t));
-    node.querySelector('.deleteBtn').addEventListener('click', ()=> delTask(t.id));
-
-    listEl.appendChild(node);
+  node.querySelector('.name').textContent = t.name;
+  node.querySelector('.details').textContent = detailsText(t,m);
+  // Assignment
+  const assignEl = node.querySelector('.assignment');
+  assignEl.textContent = t.assignedTo ? `Assigned to: ${t.assignedTo}` : '';
+  assignEl.classList.toggle('hidden', !t.assignedTo);
+  // History
+  const histEl = node.querySelector('.history');
+  histEl.textContent = t.lastCompletedBy ? `Last completed by: ${t.lastCompletedBy}` : '';
+  histEl.classList.toggle('hidden', !t.lastCompletedBy);
+  // Notes
+  const notesEl = node.querySelector('.notes');
+  if (t.notes) { notesEl.textContent = t.notes; notesEl.classList.remove('hidden'); }
+  // Status
+  const statusTag = node.querySelector('.statusTag');
+  statusTag.textContent = statusLabel(m.status, m.dueIn);
+  statusTag.classList.add(m.status === 'overdue' ? 'red' : m.status === 'soon' ? 'yellow' : 'green');
+  node.querySelector('.pinnedTag').classList.toggle('hidden', !t.pinned);
+  node.querySelector('.completedTag').classList.toggle('hidden', t.lastCompleted !== todayISO());
+  node.querySelector('.markBtn').addEventListener('click', ()=> markDone(t.id));
+  node.querySelector('.editBtn').addEventListener('click', ()=> openModal(t));
+  node.querySelector('.deleteBtn').addEventListener('click', ()=> delTask(t.id));
+  listEl.appendChild(node);
   }
 }
 
@@ -240,12 +246,14 @@ function upsertFromForm(){
   const item = {
     id: data.id || crypto.randomUUID(),
     name: String(data.name).trim(),
+    assignedTo: String(data.assignedTo||'').trim(),
     frequencyDays: Math.max(1, parseInt(data.frequencyDays||'1',10)),
     lastDone: data.lastDone || '',
     notes: String(data.notes||'').trim(),
     pinned: !!data.pinned,
     active: !!data.active,
-    lastCompleted: undefined
+    lastCompleted: undefined,
+    lastCompletedBy: undefined
   };
   const idx = tasks.findIndex(t=> t.id === item.id);
   if (idx >= 0) {
@@ -269,6 +277,11 @@ function markDone(id){
   if(!t) return;
   t.lastDone = todayISO();
   t.lastCompleted = todayISO();
+  // Prompt for who completed (for now, simple prompt)
+  let who = t.assignedTo || localStorage.getItem('lifeDash.user') || '';
+  who = prompt('Who completed this task?', who) || who || 'Someone';
+  t.lastCompletedBy = who;
+  localStorage.setItem('lifeDash.user', who); // remember for next time
   save();
   render();
   showToast('Task marked done');
@@ -304,20 +317,4 @@ function applyTheme(t){
   document.body.classList.remove('light','dark');
   document.body.classList.add(t === 'dark' ? 'dark' : 'light');
   localStorage.setItem(THEME_KEY, t);
-  // Update theme-color meta
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    meta.setAttribute('content', t === 'dark' ? '#0b0b0f' : '#ffffff');
-  }
 }
-
-themeBtn.addEventListener('click', ()=>{
-  const curr = localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  applyTheme(curr === 'light' ? 'dark' : 'light');
-});
-
-// Boot
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-applyTheme(localStorage.getItem(THEME_KEY) || (prefersDark ? 'dark' : 'light'));
-load();
-render();

@@ -99,6 +99,10 @@
           <input name="name" required class="input">
         </label>
         <label class="field">
+          <span class="label">Assigned To</span>
+          <input name="assignedTo" class="input" placeholder="Roommate name (optional)">
+        </label>
+        <label class="field">
           <span class="label">Frequency (days)</span>
           <input name="frequencyDays" type="number" min="1" step="1" required class="input">
         </label>
@@ -135,6 +139,8 @@
             <span class="tag completedTag hidden">Completed today</span>
           </div>
           <div class="muted details"></div>
+          <div class="xsmall assignment"></div>
+          <div class="xsmall history"></div>
           <div class="xsmall notes hidden"></div>
         </div>
         <div class="item-actions">
