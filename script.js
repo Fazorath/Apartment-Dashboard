@@ -1,3 +1,8 @@
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+if (settingsBtn && settingsModal) {
+  settingsBtn.addEventListener('click', () => settingsModal.showModal());
+}
 const toast = document.getElementById('toast');
 let toastTimeout = null;
 function showToast(msg) {

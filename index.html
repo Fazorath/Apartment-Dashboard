@@ -21,11 +21,28 @@
       </div>
       <div class="actions">
         <button id="addTaskBtn" class="btn">➕ Add Task</button>
-        <label class="btn" style="padding:0 .5rem;display:flex;align-items:center;gap:.5rem;">
-          <span style="font-size:1.1em;">🎨</span>
-          <input id="accentColorPicker" type="color" title="Pick accent color" />
-        </label>
-        <button id="themeBtn" class="btn" title="Toggle theme">🌓 Theme</button>
+        <button id="settingsBtn" class="btn" title="Settings">⚙️ Settings</button>
+  <!-- Settings Modal (Card Style) -->
+  <dialog id="settingsModal" class="dialog card settings-modal">
+    <form method="dialog" style="min-width:300px;">
+      <div class="dialog-head">
+        <h2 class="dialog-title">Settings</h2>
+      </div>
+      <div class="dialog-body settings-body">
+        <div class="settings-row">
+          <span class="settings-label">🎨 <span>Accent Color</span></span>
+          <input id="accentColorPicker" type="color" class="accent-picker" title="Pick accent color" />
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">🌓 <span>Theme</span></span>
+          <button id="themeBtn" type="button" class="btn">Toggle</button>
+        </div>
+      </div>
+      <div class="dialog-foot">
+        <button type="submit" class="btn">Close</button>
+      </div>
+    </form>
+  </dialog>
       </div>
     </header>
 
