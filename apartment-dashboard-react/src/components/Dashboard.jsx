@@ -125,6 +125,15 @@ export default function Dashboard() {
     let active = 0
     
     tasksData.forEach(task => {
+      // Count completed tasks based on current completion state (lastCompleted)
+      if (task.lastCompleted) {
+        const daysSinceCompleted = Math.floor((today - new Date(task.lastCompleted)) / (1000 * 60 * 60 * 24))
+        if (daysSinceCompleted <= 30) {
+          completed++
+        }
+      }
+      
+      // Calculate due status based on historical completion (lastDone)
       if (!task.lastDone) {
         overdue++
         active++
@@ -142,12 +151,6 @@ export default function Dashboard() {
         active++
       } else {
         active++
-      }
-      
-      // Count completed tasks (done within last 30 days)
-      const daysSinceCompleted = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
-      if (daysSinceCompleted <= 30) {
-        completed++
       }
     })
     
