@@ -98,16 +98,17 @@ const Login = () => {
                   onChange={handleChange}
                   placeholder=" "
                   autoComplete="username"
-                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 px-10 pt-6 pb-2 outline-none
+                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-8 pr-4 pt-6 pb-2 outline-none
                            text-[15px] text-white transition-all duration-200 ease-out
                            focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
                            placeholder-shown:pt-4"
                   required
                 />
-                <label className="absolute left-10 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                <label className={`absolute left-8 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
                                 peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
                                 peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                pointer-events-none select-none">
+                                pointer-events-none select-none
+                                ${formData.username ? 'opacity-0' : 'opacity-100'}`}>
                   Username
                 </label>
               </div>
@@ -121,16 +122,17 @@ const Login = () => {
                   onChange={handleChange}
                   placeholder=" "
                   autoComplete="current-password"
-                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 px-10 pt-6 pb-2 pr-12 outline-none
+                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-8 pt-6 pb-2 pr-12 outline-none
                            text-[15px] text-white transition-all duration-200 ease-out
                            focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
                            placeholder-shown:pt-4"
                   required
                 />
-                <label className="absolute left-10 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                <label className={`absolute left-8 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
                                 peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
                                 peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                pointer-events-none select-none">
+                                pointer-events-none select-none
+                                ${formData.password ? 'opacity-0' : 'opacity-100'}`}>
                   Password
                 </label>
                 <button
