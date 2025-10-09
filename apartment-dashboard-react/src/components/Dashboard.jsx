@@ -1,7 +1,222 @@
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { getTasks, createTask, updateTask, markTaskDone } from '../services/api'
+import TaskModal from './TaskModal'
 
 export default function Dashboard() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
+  const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [stats, setStats] = useState({
+    overdue: 0,
+    soon: 0,
+    total: 0,
+    completed: 0
+  })
+  const [showModal, setShowModal] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+
+  // Fetch tasks and stats
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const tasksData = await getTasks()
+        setTasks(tasksData)
+        calculateStats(tasksData)
+      } catch (err) {
+        setError(err.message)
+        console.error('Failed to fetch tasks:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  // Modal handlers
+  const handleOpenModal = (task = null) => {
+    setEditingTask(task)
+    setShowModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setEditingTask(null)
+  }
+
+  const handleSaveTask = async (taskData) => {
+    try {
+      if (editingTask) {
+        // Update existing task
+        const updatedTask = await updateTask({ id: editingTask._id, ...taskData })
+        setTasks(prev => prev.map(task => 
+          task._id === editingTask._id ? updatedTask : task
+        ))
+      } else {
+        // Create new task
+        const newTask = await createTask(taskData)
+        setTasks(prev => [...prev, newTask])
+      }
+      
+      // Recalculate stats
+      const updatedTasks = editingTask 
+        ? tasks.map(task => task._id === editingTask._id ? { ...task, ...taskData } : task)
+        : [...tasks, { ...taskData, _id: Date.now() }] // temporary ID for stats calculation
+      
+      calculateStats(updatedTasks)
+      handleCloseModal()
+    } catch (error) {
+      console.error('Failed to save task:', error)
+      // You could add a toast notification here
+    }
+  }
+
+  const handleTaskCompletion = async (taskId) => {
+    try {
+      const updatedTask = await markTaskDone(taskId)
+      setTasks(prev => prev.map(task => 
+        task._id === taskId ? updatedTask : task
+      ))
+      
+      // Recalculate stats with updated task
+      const updatedTasks = tasks.map(task => 
+        task._id === taskId ? updatedTask : task
+      )
+      calculateStats(updatedTasks)
+    } catch (error) {
+      console.error('Failed to mark task as done:', error)
+      // You could add a toast notification here
+    }
+  }
+
+  const calculateStats = (tasksData) => {
+    const today = new Date()
+    let overdue = 0
+    let soon = 0
+    let completed = 0
+    
+    tasksData.forEach(task => {
+      if (!task.lastDone) {
+        overdue++
+        return
+      }
+      
+      const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
+      const daysUntilDue = task.frequencyDays - daysSince
+      
+      if (daysUntilDue <= 0) {
+        overdue++
+      } else if (daysUntilDue <= 2) {
+        soon++
+      }
+      
+      // Count completed tasks (done within last 30 days)
+      const daysSinceCompleted = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
+      if (daysSinceCompleted <= 30) {
+        completed++
+      }
+    })
+    
+    setStats({
+      overdue,
+      soon,
+      total: tasksData.length,
+      completed
+    })
+  }
+
+  // Helper functions to categorize tasks
+  const getTaskStatus = (task) => {
+    if (!task.lastDone) return 'overdue'
+    
+    const today = new Date()
+    const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
+    const daysUntilDue = task.frequencyDays - daysSince
+    
+    if (daysUntilDue <= 0) return 'overdue'
+    if (daysUntilDue <= 2) return 'soon'
+    return 'ok'
+  }
+
+  const getTodayTasks = () => {
+    return tasks.filter(task => {
+      const status = getTaskStatus(task)
+      return status === 'overdue' || status === 'soon'
+    })
+  }
+
+  const getUpcomingTasks = () => {
+    const today = new Date()
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+    
+    return tasks.filter(task => {
+      if (!task.lastDone) return false
+      
+      const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
+      const daysUntilDue = task.frequencyDays - daysSince
+      
+      return daysUntilDue > 0 && daysUntilDue <= 7
+    })
+  }
+
+  // Custom checkbox component
+  const TaskCheckbox = ({ task, onComplete }) => {
+    const isRecentlyCompleted = task.lastDone && 
+      Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) <= 1
+
+    return (
+      <button
+        onClick={() => onComplete(task._id)}
+        className={`mt-1.5 h-5 w-5 rounded-md border-2 transition-all duration-200 hover:scale-110 ${
+          isRecentlyCompleted
+            ? 'bg-emerald-500 border-emerald-500 text-white'
+            : 'border-white/30 bg-white/5 hover:border-emerald-400/50 hover:bg-emerald-500/10'
+        }`}
+      >
+        {isRecentlyCompleted && (
+          <svg 
+            viewBox="0 0 24 24" 
+            className="h-3 w-3 mx-auto" 
+            fill="currentColor"
+          >
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+          </svg>
+        )}
+      </button>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mx-auto mb-4"></div>
+          <p className="text-zinc-400">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-rose-400 mb-4">⚠️ Error loading dashboard</div>
+          <p className="text-zinc-400 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200">
       {/* App Shell */}
@@ -20,7 +235,10 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="hidden md:flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">
+            <button 
+              onClick={() => handleOpenModal()}
+              className="hidden md:flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition"
+            >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 2a1 1 0 0 1 1 1v8h8a1 1 0 1 1 0 2h-8v8a1 1 0 1 1-2 0v-8H2a1 1 0 1 1 0-2h8V3a1 1 0 0 1 1-1z"/></svg>
               New List
             </button>
@@ -34,10 +252,10 @@ export default function Dashboard() {
         {/* Stats Row */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            {label: 'Overdue', value: 3},
-            {label: 'Due in 2 days', value: 5},
-            {label: 'Total Active', value: 18},
-            {label: 'Completed (30d)', value: 54},
+            {label: 'Overdue', value: stats.overdue},
+            {label: 'Due in 2 days', value: stats.soon},
+            {label: 'Total Active', value: stats.total},
+            {label: 'Completed (30d)', value: stats.completed},
           ].map((s, i) => (
             <div key={i} className="group rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-4 hover:from-white/[0.08] transition">
               <div className="flex items-center justify-between">
@@ -69,7 +287,10 @@ export default function Dashboard() {
                 placeholder="Search tasks..." />
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25">
+            <button 
+              onClick={() => handleOpenModal()}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
+            >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
               Add Task
             </button>
@@ -84,28 +305,56 @@ export default function Dashboard() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Today</h2>
-                <span className="text-xs text-zinc-400">3 due · 1 overdue</span>
+                <span className="text-xs text-zinc-400">
+                  {getTodayTasks().filter(t => getTaskStatus(t) === 'soon').length} due · {getTodayTasks().filter(t => getTaskStatus(t) === 'overdue').length} overdue
+                </span>
               </div>
               <ul className="divide-y divide-white/10">
-                {[
-                  {title: 'Kitchen — take out trash', tag: 'Apartment', due: 'Today 7:00 PM', priority: 'High'},
-                  {title: 'Bathroom — scrub sink & mirror', tag: 'Cleaning', due: 'Today 8:30 PM', priority: 'Med'},
-                  {title: 'Laundry — darks', tag: 'Weekly', due: 'Today 9:00 PM', priority: 'Low'},
-                ].map((t, i)=> (
-                  <li key={i} className="px-5 py-4 flex items-start gap-4 hover:bg-white/[0.04]">
-                    <input type="checkbox" className="mt-1.5 h-5 w-5 rounded-md border-white/20 bg-white/5" />
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium text-zinc-100">{t.title}</p>
-                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-400/15 border border-indigo-400/30 text-indigo-200">{t.tag}</span>
-                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-400/10 border border-emerald-400/30 text-emerald-200">{t.due}</span>
-                        <span className="ml-auto text-[11px] px-2 py-0.5 rounded-md bg-rose-400/10 border border-rose-400/30 text-rose-200">{t.priority}</span>
-                      </div>
-                      <p className="mt-1 text-xs text-zinc-400">Last done 4d ago · repeats weekly</p>
-                    </div>
-                    <button className="self-center text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">Details</button>
+                {getTodayTasks().length === 0 ? (
+                  <li className="px-5 py-8 text-center text-zinc-400">
+                    No tasks due today! 🎉
                   </li>
-                ))}
+                ) : (
+                  getTodayTasks().map((task, i) => {
+                    const status = getTaskStatus(task)
+                    const daysSince = task.lastDone ? Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) : null
+                    
+                    return (
+                      <li key={task._id} className="px-5 py-4 flex items-start gap-4 hover:bg-white/[0.04]">
+                        <TaskCheckbox task={task} onComplete={handleTaskCompletion} />
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-zinc-100">{task.name}</p>
+                            {task.assignedTo && (
+                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-400/15 border border-indigo-400/30 text-indigo-200">
+                                {task.assignedTo}
+                              </span>
+                            )}
+                            <span className={`text-[11px] px-2 py-0.5 rounded-md ${
+                              status === 'overdue' 
+                                ? 'bg-rose-400/10 border border-rose-400/30 text-rose-200'
+                                : 'bg-emerald-400/10 border border-emerald-400/30 text-emerald-200'
+                            }`}>
+                              {status === 'overdue' ? 'Overdue' : 'Due Soon'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            {daysSince !== null 
+                              ? `Last done ${daysSince}d ago · repeats every ${task.frequencyDays} days`
+                              : `Never done · repeats every ${task.frequencyDays} days`
+                            }
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => handleOpenModal(task)}
+                          className="self-center text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]"
+                        >
+                          Details
+                        </button>
+                      </li>
+                    )
+                  })
+                )}
               </ul>
             </div>
 
@@ -116,22 +365,34 @@ export default function Dashboard() {
                 <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">View calendar</button>
               </div>
               <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  {d:'Fri', t:'9:00 AM', name:'Water plants', list:'Home'},
-                  {d:'Sat', t:'10:30 AM', name:'Vacuum living room', list:'Cleaning'},
-                  {d:'Sun', t:'7:00 PM', name:'Meal prep', list:'Kitchen'},
-                  {d:'Mon', t:'All day', name:'Pay utilities', list:'Finance'},
-                  {d:'Wed', t:'6:30 PM', name:'Mop floors', list:'Cleaning'},
-                  {d:'Thu', t:'8:00 PM', name:'Laundry — whites', list:'Weekly'},
-                ].map((c, i)=> (
-                  <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-zinc-400">{c.d} · {c.t}</div>
-                      <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10">{c.list}</span>
-                    </div>
-                    <p className="mt-2 font-medium">{c.name}</p>
+                {getUpcomingTasks().length === 0 ? (
+                  <div className="col-span-full text-center text-zinc-400 py-8">
+                    No upcoming tasks this week! 🎉
                   </div>
-                ))}
+                ) : (
+                  getUpcomingTasks().map((task, i) => {
+                    const today = new Date()
+                    const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
+                    const daysUntilDue = task.frequencyDays - daysSince
+                    const dueDate = new Date(today.getTime() + daysUntilDue * 24 * 60 * 60 * 1000)
+                    
+                    return (
+                      <div key={task._id} className="rounded-xl border border-white/10 bg-[#111217] p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-zinc-400">
+                            {dueDate.toLocaleDateString('en-US', { weekday: 'short' })} · {daysUntilDue}d
+                          </div>
+                          {task.assignedTo && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10">
+                              {task.assignedTo}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 font-medium">{task.name}</p>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -142,10 +403,14 @@ export default function Dashboard() {
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">This Week</h3>
-                <span className="text-xs text-zinc-400">Goal: 20 tasks</span>
+                <span className="text-xs text-zinc-400">Goal: {Math.max(20, stats.total)} tasks</span>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-4">
-                {[{k:'Done',v:12},{k:'Active',v:8},{k:'Overdue',v:3}].map((m,i)=>(
+                {[
+                  {k:'Done',v:stats.completed},
+                  {k:'Active',v:stats.total},
+                  {k:'Overdue',v:stats.overdue}
+                ].map((m,i)=>(
                   <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
                     <p className="text-xs text-zinc-400">{m.k}</p>
                     <p className="mt-1 text-2xl font-semibold">{m.v}</p>
@@ -155,10 +420,15 @@ export default function Dashboard() {
               <div className="mt-4">
                 <div className="flex items-center justify-between text-xs mb-2">
                   <span className="text-zinc-400">Completion</span>
-                  <span className="text-zinc-300">60%</span>
+                  <span className="text-zinc-300">
+                    {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+                  </span>
                 </div>
                 <div className="h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
-                  <div className="h-full w-[60%] bg-emerald-500/60" />
+                  <div 
+                    className="h-full bg-emerald-500/60 transition-all duration-300" 
+                    style={{ width: `${stats.total > 0 ? (stats.completed / stats.total) * 100 : 0}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -184,20 +454,33 @@ export default function Dashboard() {
                 <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">Manage</button>
               </div>
               <ul className="mt-3 space-y-2">
-                {[
-                  {name:'Cleaning', count:7},
-                  {name:'Kitchen', count:5},
-                  {name:'Finance', count:3},
-                  {name:'Groceries', count:2},
-                ].map((l,i)=> (
-                  <li key={i} className="flex items-center justify-between rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
-                    <div className="flex items-center gap-3">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70"/>
-                      <p className="text-sm">{l.name}</p>
-                    </div>
-                    <span className="text-xs text-zinc-400">{l.count} active</span>
-                  </li>
-                ))}
+                {(() => {
+                  // Group tasks by assignedTo or create "Unassigned" category
+                  const taskGroups = tasks.reduce((acc, task) => {
+                    const category = task.assignedTo || 'Unassigned'
+                    if (!acc[category]) {
+                      acc[category] = 0
+                    }
+                    acc[category]++
+                    return acc
+                  }, {})
+                  
+                  return Object.entries(taskGroups).length === 0 ? (
+                    <li className="px-3 py-2 text-center text-zinc-400 text-sm">
+                      No tasks yet
+                    </li>
+                  ) : (
+                    Object.entries(taskGroups).map(([name, count], i) => (
+                      <li key={i} className="flex items-center justify-between rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
+                        <div className="flex items-center gap-3">
+                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70"/>
+                          <p className="text-sm">{name}</p>
+                        </div>
+                        <span className="text-xs text-zinc-400">{count} active</span>
+                      </li>
+                    ))
+                  )
+                })()}
               </ul>
             </div>
           </aside>
@@ -207,6 +490,15 @@ export default function Dashboard() {
       <footer className="mx-auto max-w-7xl px-6 py-10 text-center text-xs text-zinc-500">
         Local‑first. Data lives in your browser.
       </footer>
+
+      {/* Task Modal */}
+      {showModal && (
+        <TaskModal
+          task={editingTask}
+          onClose={handleCloseModal}
+          onSave={handleSaveTask}
+        />
+      )}
     </div>
   )
 }
