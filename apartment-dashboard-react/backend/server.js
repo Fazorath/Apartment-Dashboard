@@ -1,11 +1,13 @@
 import express from 'express'
-import mongoose from 'mongoose'
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import taskRoutes from './routes/tasks.js'
-import { authenticateToken } from './middleware/auth.js'
+import apartmentRoutes from './routes/apartment.js'
+import adminRoutes from './routes/admin.js'
+import { authenticateToken, requireAdmin } from './middleware/auth.js'
+import dbManager from './utils/dbManager.js'
 
 dotenv.config()
 
@@ -15,7 +17,7 @@ const PORT = process.env.PORT || 3000
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // limit each IP to 1000 requests per windowMs (increased for testing)
   message: 'Too many requests from this IP, please try again later.'
 })
 
@@ -25,8 +27,14 @@ app.use(limiter)
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:5176',
   'http://localhost:5181',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
+  'http://127.0.0.1:5176',
   'http://127.0.0.1:5181'
 ].filter(Boolean)
 
@@ -40,14 +48,16 @@ app.use(cors({
 }))
 app.use(express.json())
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/apartment-dashboard')
-.then(() => console.log('✅ Connected to MongoDB'))
-.catch(err => console.error('❌ MongoDB connection error:', err))
+// Initialize database manager
+dbManager.getMainConnection()
+.then(() => console.log('✅ Database manager initialized'))
+.catch(err => console.error('❌ Database manager initialization error:', err))
 
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/tasks', authenticateToken, taskRoutes)
+app.use('/api/apartment', authenticateToken, apartmentRoutes)
+app.use('/api/admin', authenticateToken, requireAdmin, adminRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {

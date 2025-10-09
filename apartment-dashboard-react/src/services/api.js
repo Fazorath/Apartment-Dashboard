@@ -8,22 +8,27 @@ if (API_BASE) {
   axios.defaults.baseURL = API_BASE
 }
 
-// Add request interceptor to include auth token
+// Add request interceptor to include auth token (prefer localStorage, fallback to sessionStorage)
 axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken')
+  let token = localStorage.getItem('authToken')
+  if (!token) {
+    token = sessionStorage.getItem('authToken')
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
-// Add response interceptor to handle auth errors
+// Add response interceptor to handle auth errors without hard redirects (avoid loops)
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Clear both storages; AuthContext will show login automatically
       localStorage.removeItem('authToken')
-      window.location.href = '/login'
+      localStorage.removeItem('rememberMe')
+      sessionStorage.removeItem('authToken')
     }
     return Promise.reject(error)
   }

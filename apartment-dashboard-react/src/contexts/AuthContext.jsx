@@ -21,7 +21,15 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken')
+      // Check both localStorage (remember me) and sessionStorage (session only)
+      let token = localStorage.getItem('authToken')
+      const rememberMe = localStorage.getItem('rememberMe')
+      
+      // If no token in localStorage, check sessionStorage
+      if (!token) {
+        token = sessionStorage.getItem('authToken')
+      }
+      
       if (!token) {
         setUser(null)
         setLoading(false)
@@ -38,29 +46,53 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success) {
         setUser(response.data.user)
       } else {
+        // Clear both storage locations on auth failure
         localStorage.removeItem('authToken')
+        localStorage.removeItem('rememberMe')
+        sessionStorage.removeItem('authToken')
         setUser(null)
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      // Clear both storage locations on error
       localStorage.removeItem('authToken')
+      localStorage.removeItem('rememberMe')
+      sessionStorage.removeItem('authToken')
       setUser(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const login = async (username, password) => {
+  const login = async (username, password, apartmentCode = null, rememberMe = false) => {
     try {
       const response = await axios.post('/api/auth/login', {
         username,
-        password
+        password,
+        apartmentCode
       })
       
       if (response.data.success) {
         const token = response.data.token
-        localStorage.setItem('authToken', token)
-        setUser({ username: response.data.user.username })
+        
+        // Store token based on remember me preference
+        if (rememberMe) {
+          // Store in localStorage for persistent login (survives browser restart)
+          localStorage.setItem('authToken', token)
+          localStorage.setItem('rememberMe', 'true')
+        } else {
+          // Store in sessionStorage for session-only login (cleared when browser closes)
+          sessionStorage.setItem('authToken', token)
+          localStorage.removeItem('authToken')
+          localStorage.removeItem('rememberMe')
+        }
+        
+        setUser({ 
+          username: response.data.user.username,
+          apartmentCode: response.data.user.apartmentCode,
+          apartmentName: response.data.user.apartmentName,
+          isAdmin: response.data.user.isAdmin
+        })
         return { success: true }
       }
       return { success: false, error: 'Login failed' }
@@ -73,17 +105,26 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const register = async (username, password) => {
+  const register = async (username, password, apartmentCode, email = null) => {
     try {
       const response = await axios.post('/api/auth/register', {
         username,
-        password
+        password,
+        apartmentCode,
+        email
       })
       
       if (response.data.success) {
         const token = response.data.token
+        // For registration, always use localStorage (persistent login)
         localStorage.setItem('authToken', token)
-        setUser({ username: response.data.user.username })
+        localStorage.setItem('rememberMe', 'true')
+        setUser({ 
+          username: response.data.user.username,
+          apartmentCode: response.data.user.apartmentCode,
+          apartmentName: response.data.user.apartmentName,
+          isAdmin: response.data.user.isAdmin
+        })
         return { success: true }
       }
       return { success: false, error: 'Registration failed' }
@@ -96,8 +137,60 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const createApartment = async (username, password, apartmentCode, apartmentName, email = null) => {
+    try {
+      const response = await axios.post('/api/auth/create-apartment', {
+        username,
+        password,
+        apartmentCode,
+        apartmentName,
+        email
+      })
+      
+      if (response.data.success) {
+        const token = response.data.token
+        // For apartment creation, always use localStorage (persistent login)
+        localStorage.setItem('authToken', token)
+        localStorage.setItem('rememberMe', 'true')
+        setUser({ 
+          username: response.data.user.username,
+          apartmentCode: response.data.user.apartmentCode,
+          apartmentName: response.data.user.apartmentName,
+          isAdmin: response.data.user.isAdmin
+        })
+        return { success: true }
+      }
+      return { success: false, error: 'Apartment creation failed' }
+    } catch (error) {
+      console.error('Create apartment error:', error)
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Apartment creation failed' 
+      }
+    }
+  }
+
+  const generateApartmentCode = async () => {
+    try {
+      const response = await axios.get('/api/auth/generate-apartment-code')
+      if (response.data.success) {
+        return { success: true, apartmentCode: response.data.apartmentCode }
+      }
+      return { success: false, error: 'Failed to generate apartment code' }
+    } catch (error) {
+      console.error('Generate apartment code error:', error)
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to generate apartment code' 
+      }
+    }
+  }
+
   const logout = () => {
+    // Clear both localStorage and sessionStorage
     localStorage.removeItem('authToken')
+    localStorage.removeItem('rememberMe')
+    sessionStorage.removeItem('authToken')
     setUser(null)
   }
 
@@ -106,7 +199,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
-    logout
+    createApartment,
+    logout,
+    generateApartmentCode
   }
 
   return (

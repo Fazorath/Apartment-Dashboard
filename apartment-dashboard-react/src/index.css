@@ -15,18 +15,18 @@ body {
 
 /* Login card padding fix */
 .login-card {
-  padding: 48px !important;
+  padding: 24px !important;
 }
 
 @media (min-width: 640px) {
   .login-card {
-    padding: 64px !important;
+    padding: 32px !important;
   }
 }
 
 @media (min-width: 768px) {
   .login-card {
-    padding: 80px !important;
+    padding: 40px !important;
   }
 }
 

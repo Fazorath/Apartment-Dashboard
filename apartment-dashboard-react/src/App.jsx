@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
+import AdminDashboard from './components/AdminDashboard'
 
 const queryClient = new QueryClient()
 
@@ -34,6 +35,11 @@ function AppRoutes() {
   
   if (!user) {
     return <Login />
+  }
+  
+  // Check if user is admin
+  if (user.isAdmin) {
+    return <AdminDashboard />
   }
   
   return <Dashboard />

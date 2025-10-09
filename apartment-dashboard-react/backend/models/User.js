@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
+import dbManager from '../utils/dbManager.js'
 
 const userSchema = new mongoose.Schema({
   username: {
@@ -20,12 +21,31 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  apartmentCode: {
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true,
+    minlength: 4,
+    maxlength: 8,
+    match: /^[A-Z0-9]+$/
+  },
+  apartmentName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 50
+  },
   createdAt: {
     type: Date,
     default: Date.now
   },
   lastLogin: {
     type: Date
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -54,4 +74,13 @@ userSchema.methods.toJSON = function() {
   return user
 }
 
-export default mongoose.model('User', userSchema)
+// Function to get User model with proper connection
+export const getUserModel = async () => {
+  const connection = await dbManager.getMainConnection()
+  return connection.model('User', userSchema)
+}
+
+// For backward compatibility, export a function that returns the model
+export default async () => {
+  return await getUserModel()
+}

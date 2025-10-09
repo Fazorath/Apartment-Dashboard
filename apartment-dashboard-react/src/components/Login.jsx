@@ -4,15 +4,20 @@ import { Lock, Eye, EyeOff, User, KeyRound } from 'lucide-react'
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true)
+  const [isCreateApartment, setIsCreateApartment] = useState(false)
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
+    apartmentCode: '',
+    apartmentName: '',
+    email: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   
-  const { user, login, register } = useAuth()
+  const { user, login, register, createApartment, generateApartmentCode } = useAuth()
 
   useEffect(() => {
     if (user) {
@@ -26,15 +31,19 @@ const Login = () => {
     setError('')
 
     try {
-      const result = isLogin 
-        ? await login(formData.username, formData.password)
-        : await register(formData.username, formData.password)
+      let result
+      if (isLogin) {
+        result = await login(formData.username, formData.password, formData.apartmentCode, rememberMe)
+      } else if (isCreateApartment) {
+        result = await createApartment(formData.username, formData.password, formData.apartmentCode, formData.apartmentName, formData.email)
+      } else {
+        result = await register(formData.username, formData.password, formData.apartmentCode, formData.email)
+      }
 
       if (!result.success) {
         setError(result.error)
-      } else {
-        window.location.href = '/dashboard'
       }
+      // No need to redirect - the App.jsx will automatically show Dashboard when user is set
     } catch (err) {
       console.error('Login error:', err)
       setError('An unexpected error occurred')
@@ -48,6 +57,23 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     })
+  }
+
+  const handleGenerateApartmentCode = async () => {
+    try {
+      const result = await generateApartmentCode()
+      if (result.success) {
+        setFormData(prev => ({
+          ...prev,
+          apartmentCode: result.apartmentCode
+        }))
+      } else {
+        setError(result.error)
+      }
+    } catch (err) {
+      console.error('Generate apartment code error:', err)
+      setError('Failed to generate apartment code')
+    }
   }
 
   return (
@@ -70,8 +96,8 @@ const Login = () => {
       </div>
 
       {/* Main content */}
-      <main className="relative z-10 flex min-h-screen items-center justify-center p-6 md:translate-y-[-6vh]">
-        <div className="w-full max-w-[420px] mx-auto">
+      <main className="relative z-10 flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-[420px] mx-auto flex justify-center">
 
           {/* Glassmorphism Card */}
           <section 
@@ -79,16 +105,16 @@ const Login = () => {
                        shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]
                        border border-white/10"
           >
-            {/* Main Content Container with Consistent Vertical Rhythm */}
-            <div className="flex flex-col gap-5">
+            {/* Main Content Container with Reduced Padding */}
+                <div className="flex flex-col gap-3 py-1.5">
               <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
-                {isLogin ? 'Roommate Dash' : 'Create Your Account'}
+                {isLogin ? 'Roommate Dash' : isCreateApartment ? 'Create New Apartment' : 'Join Apartment'}
               </h1>
               <p className="text-[14px] text-neutral-400 leading-[1.45] text-center">
-                {isLogin ? "Let's keep your chores in check." : 'Organize tasks, live better together.'}
+                {isLogin ? "Let's keep your chores in check." : isCreateApartment ? 'Set up a new apartment dashboard for your household.' : 'Join an existing apartment dashboard.'}
               </p>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {/* Username - Floating Label */}
               <div className="relative">
                 <input
@@ -156,6 +182,90 @@ const Login = () => {
                 </button>
               </div>
 
+              {/* Email - Only show for registration */}
+              {!isLogin && (
+                <div className="relative">
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder=" "
+                    className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
+                             text-[15px] text-white transition-all duration-200 ease-out
+                             focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
+                             placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
+                  />
+                  <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                                  peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
+                                  peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
+                                  peer-[&:not(:placeholder-shown)]:opacity-0
+                                  pointer-events-none select-none">
+                    Email (Optional)
+                  </label>
+                </div>
+              )}
+
+              {/* Apartment Name - Only show for apartment creation */}
+              {isCreateApartment && (
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="apartmentName"
+                    value={formData.apartmentName}
+                    onChange={handleChange}
+                    placeholder=" "
+                    className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
+                             text-[15px] text-white transition-all duration-200 ease-out
+                             focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
+                             placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
+                    required
+                  />
+                  <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                                  peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
+                                  peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
+                                  peer-[&:not(:placeholder-shown)]:opacity-0
+                                  pointer-events-none select-none">
+                    Apartment Name
+                  </label>
+                </div>
+              )}
+
+              {/* Apartment Code - Required for both login and registration */}
+              <div className="relative">
+                <input
+                  type="text"
+                  name="apartmentCode"
+                  value={formData.apartmentCode}
+                  onChange={handleChange}
+                  placeholder=" "
+                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
+                           text-[15px] text-white transition-all duration-200 ease-out
+                           focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
+                           placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
+                  required
+                />
+                <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                                peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
+                                peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
+                                peer-[&:not(:placeholder-shown)]:opacity-0
+                                pointer-events-none select-none">
+                  Apartment Code
+                </label>
+                {/* Generate button for apartment creation */}
+                {isCreateApartment && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateApartmentCode}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-8 px-3 rounded-lg text-xs font-medium text-emerald-400 hover:text-emerald-300
+                             hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 ease-out
+                             bg-white/5 border border-emerald-400/20"
+                  >
+                    Generate
+                  </button>
+                )}
+              </div>
+
               {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-3 rounded-xl border border-[#FF5C5C]/60 bg-[#FF5C5C]/10 p-3 backdrop-blur">
@@ -166,19 +276,24 @@ const Login = () => {
                 </div>
               )}
 
-                {/* Remember me & Forgot password - Grouped Container */}
-                <div className="flex items-center justify-between text-sm">
-                  <label className="inline-flex items-center gap-2">
-                    <input 
-                      type="checkbox" 
-                      className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-emerald-400/20" 
-                    />
-                    <span className="text-neutral-400">Remember me</span>
-                  </label>
-                  <a href="#" className="text-neutral-300 hover:text-emerald-400 underline underline-offset-4 transition-colors duration-200">
-                    Forgot password?
-                  </a>
-                </div>
+                {/* Remember me & Forgot password - Only show for login */}
+                {isLogin && (
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-emerald-400/20 
+                                 checked:bg-emerald-500 checked:border-emerald-500" 
+                      />
+                      <span className="text-neutral-400">Remember me</span>
+                    </label>
+                    <a href="#" className="text-neutral-300 hover:text-emerald-400 underline underline-offset-4 transition-colors duration-200">
+                      Forgot password?
+                    </a>
+                  </div>
+                )}
 
                 {/* Enhanced CTA Button */}
                 <button
@@ -194,7 +309,7 @@ const Login = () => {
                            before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700"
                 >
                   <span className={`relative z-10 ${loading ? "translate-x-[-6px]" : ""}`}>
-                    {isLogin ? 'Sign in' : 'Create account'}
+                    {isLogin ? 'Sign in' : isCreateApartment ? 'Create Apartment' : 'Join Apartment'}
                   </span>
                   {loading && (
                     <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin z-10" viewBox="0 0 24 24" fill="none">
@@ -209,29 +324,73 @@ const Login = () => {
               <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
               {/* Secondary Action - Separated from main form */}
-              <p className="text-center text-sm text-neutral-400">
+              <div className="text-center text-sm text-neutral-400 space-y-2">
                 {isLogin ? (
                   <>
-                    New here? <button
-                      type="button"
-                      onClick={() => setIsLogin(!isLogin)}
-                      className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                    >
-                      Create an account
-                    </button>
+                    <p>
+                      New here? <button
+                        type="button"
+                        onClick={() => {
+                          setIsLogin(false)
+                          setIsCreateApartment(false)
+                        }}
+                        className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                      >
+                        Join an apartment
+                      </button>
+                    </p>
+                    <p>
+                      Or <button
+                        type="button"
+                        onClick={() => {
+                          setIsLogin(false)
+                          setIsCreateApartment(true)
+                        }}
+                        className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                      >
+                        Create a new apartment
+                      </button>
+                    </p>
                   </>
                 ) : (
                   <>
-                    Already have an account? <button
-                      type="button"
-                      onClick={() => setIsLogin(!isLogin)}
-                      className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                    >
-                      Sign in
-                    </button>
+                    <p>
+                      Already have an account? <button
+                        type="button"
+                        onClick={() => {
+                          setIsLogin(true)
+                          setIsCreateApartment(false)
+                        }}
+                        className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                      >
+                        Sign in
+                      </button>
+                    </p>
+                    {!isCreateApartment && (
+                      <p>
+                        Want to create a new apartment? <button
+                          type="button"
+                          onClick={() => setIsCreateApartment(true)}
+                          className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                        >
+                          Create apartment
+                        </button>
+                      </p>
+                    )}
+                    {isCreateApartment && (
+                      <p>
+                        Want to join an existing apartment? <button
+                          type="button"
+                          onClick={() => setIsCreateApartment(false)}
+                          className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                        >
+                          Join apartment
+                        </button>
+                      </p>
+                    )}
                   </>
                 )}
-              </p>
+              </div>
 
               {/* Legal microcopy - Secondary information */}
               <p className="text-center text-[11px] leading-4 text-neutral-500 opacity-70">

@@ -1,12 +1,12 @@
 import express from 'express'
-import Task from '../models/Task.js'
 
 const router = express.Router()
 
-// Get all tasks for user
+// Get all tasks for apartment
 router.get('/', async (req, res) => {
   try {
-    const tasks = await Task.find({ user: req.user._id })
+    const { Task } = req.apartmentModels
+    const tasks = await Task.find({})
       .sort({ pinned: -1, lastDone: 1, name: 1 })
     
     res.json(tasks)
@@ -34,6 +34,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Name and frequency are required' })
     }
 
+    const { Task } = req.apartmentModels
     const task = new Task({
       name,
       assignedTo,
@@ -41,8 +42,7 @@ router.post('/', async (req, res) => {
       lastDone: lastDone ? new Date(lastDone) : null,
       notes,
       pinned: Boolean(pinned),
-      active: active !== false,
-      user: req.user._id
+      active: active !== false
     })
 
     await task.save()
@@ -85,8 +85,9 @@ router.put('/:id', async (req, res) => {
     if (lastCompletedBy !== undefined) updateData.lastCompletedBy = lastCompletedBy
     if (previousLastDone !== undefined) updateData.previousLastDone = previousLastDone ? new Date(previousLastDone) : null
 
+    const { Task } = req.apartmentModels
     const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id },
+      { _id: req.params.id },
       updateData,
       { new: true }
     )
@@ -105,9 +106,9 @@ router.put('/:id', async (req, res) => {
 // Delete task
 router.delete('/:id', async (req, res) => {
   try {
+    const { Task } = req.apartmentModels
     const task = await Task.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user._id
+      _id: req.params.id
     })
 
     if (!task) {
@@ -127,14 +128,16 @@ router.post('/:id/done', async (req, res) => {
     const { completedBy } = req.body
     const today = new Date()
     
+    const { Task } = req.apartmentModels
+    
     // First get the current task to store the previous lastDone
-    const currentTask = await Task.findOne({ _id: req.params.id, user: req.user._id })
+    const currentTask = await Task.findOne({ _id: req.params.id })
     if (!currentTask) {
       return res.status(404).json({ error: 'Task not found' })
     }
     
     const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id },
+      { _id: req.params.id },
       {
         previousLastDone: currentTask.lastDone, // Store the previous lastDone
         lastDone: today,
@@ -156,7 +159,8 @@ router.post('/:id/done', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const today = new Date()
-    const tasks = await Task.find({ user: req.user._id, active: true })
+    const { Task } = req.apartmentModels
+    const tasks = await Task.find({ active: true })
     
     let overdue = 0
     let soon = 0
