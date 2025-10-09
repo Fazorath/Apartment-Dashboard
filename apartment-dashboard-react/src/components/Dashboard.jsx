@@ -1,443 +1,211 @@
-import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../contexts/AuthContext'
-import { 
-  Plus, 
-  Settings, 
-  LogOut, 
-  Search, 
-  Filter,
-  CheckCircle,
-  Trash2,
-  Edit,
-  Calendar,
-  User,
-  Clock
-} from 'lucide-react'
-import TaskModal from './TaskModal'
-import { getTasks, createTask, updateTask, deleteTask, markTaskDone } from '../services/api'
-
-const Dashboard = () => {
-  const { user, logout } = useAuth()
-  const [showTaskModal, setShowTaskModal] = useState(false)
-  const [editingTask, setEditingTask] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [showSettings, setShowSettings] = useState(false)
-  
-  const queryClient = useQueryClient()
-
-  const { data: tasks = [], isLoading, error } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: getTasks,
-    retry: false,
-    enabled: !!user
-  })
-
-  const createTaskMutation = useMutation({
-    mutationFn: createTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tasks'])
-      setShowTaskModal(false)
-    }
-  })
-
-  const updateTaskMutation = useMutation({
-    mutationFn: updateTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tasks'])
-      setShowTaskModal(false)
-      setEditingTask(null)
-    }
-  })
-
-  const deleteTaskMutation = useMutation({
-    mutationFn: deleteTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tasks'])
-    }
-  })
-
-  const markDoneMutation = useMutation({
-    mutationFn: markTaskDone,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tasks'])
-    }
-  })
-
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filter === 'all' || 
-      (filter === 'overdue' && getTaskStatus(task) === 'overdue') ||
-      (filter === 'soon' && getTaskStatus(task) === 'soon') ||
-      (filter === 'ok' && getTaskStatus(task) === 'ok')
-    return matchesSearch && matchesFilter
-  })
-
-  const stats = {
-    total: tasks.length,
-    overdue: tasks.filter(task => getTaskStatus(task) === 'overdue').length,
-    soon: tasks.filter(task => getTaskStatus(task) === 'soon').length
-  }
-
-  const handleEditTask = (task) => {
-    setEditingTask(task)
-    setShowTaskModal(true)
-  }
-
-  const handleCreateTask = () => {
-    setEditingTask(null)
-    setShowTaskModal(true)
-  }
-
-  const handleMarkDone = (taskId) => {
-    markDoneMutation.mutate(taskId)
-  }
-
-  const handleDeleteTask = (taskId) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      deleteTaskMutation.mutate(taskId)
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{background: '#0b0b0f', color: '#f5f5f5'}}>
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{background: '#0b0b0f', color: '#f5f5f5'}}>
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-4">Error loading tasks</h2>
-          <p className="text-gray-400 mb-4">{error.message}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn"
-            style={{padding: '.5rem .75rem', borderRadius: '.75rem', border: '1px solid rgba(79,70,229,0.4)', fontWeight: '600', background: 'rgba(79,70,229,0.25)', color: '#f5f5f5'}}
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
-
+export default function Dashboard() {
   return (
-    <div className="min-h-screen" style={{background: '#0b0b0f', color: '#f5f5f5'}}>
-      {/* Header */}
-      <header className="header" style={{display: 'flex', gap: '1rem', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1rem', padding: '2rem 1rem 0'}}>
-        <div>
-          <h1 className="title" style={{fontSize: 'clamp(1.5rem, 2vw + 1rem, 2.25rem)', fontWeight: '800'}}>412 Dashboard</h1>
-          <p className="subtitle" style={{color: '#9ca3af', marginTop: '.25rem'}}>Recurring chores with last-done dates & due status.</p>
-        </div>
-        <div className="actions" style={{display: 'flex', gap: '.5rem', alignItems: 'center'}}>
-          <span style={{color: '#9ca3af', marginRight: '1rem'}}>Welcome, {user?.username}</span>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="btn"
-            style={{padding: '.5rem .75rem', borderRadius: '.75rem', border: '1px solid rgba(255,255,255,0.12)', fontWeight: '600', background: 'rgba(255,255,255,0.06)', color: '#f5f5f5'}}
-          >
-            ⚙️ Settings
-          </button>
-          <button
-            onClick={() => {
-              logout()
-              window.location.reload()
-            }}
-            className="btn"
-            style={{padding: '.5rem .75rem', borderRadius: '.75rem', border: '1px solid rgba(239,68,68,0.4)', fontWeight: '600', background: 'rgba(239,68,68,0.15)', color: '#f87171'}}
-          >
-            🚪 Logout
-          </button>
+    <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200">
+      {/* App Shell */}
+      <header className="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-[#0b0c10]/70 border-b border-white/10">
+        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-emerald-400" fill="currentColor"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.258.764a1 1 0 0 1 .554 1.705l-3.8 3.705.897 5.225a1 1 0 0 1-1.451 1.054L12 17.77l-4.684 2.2a1 1 0 0 1-1.451-1.055l.897-5.224-3.8-3.705a1 1 0 0 1 .554-1.705l5.258-.764L11.106 2.553A1 1 0 0 1 12 2z"/></svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">412 Dashboard</h1>
+              <p className="text-sm text-zinc-400">
+                Recurring chores with last‑done dates & due status
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="hidden md:flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 2a1 1 0 0 1 1 1v8h8a1 1 0 1 1 0 2h-8v8a1 1 0 1 1-2 0v-8H2a1 1 0 1 1 0-2h8V3a1 1 0 0 1 1-1z"/></svg>
+              New List
+            </button>
+            <button className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
+            <button className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
+          </div>
         </div>
       </header>
 
-      <div className="container" style={{maxWidth: '72rem', margin: '0 auto', padding: '0 1rem'}}>
-        {/* Stats */}
-        <section className="stats" style={{display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: '.75rem', margin: '1rem 0'}}>
-          <div className="card" style={{border: '1px solid rgba(255,255,255,0.12)', borderRadius: '1rem', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(8px)', padding: '1rem'}}>
-            <div style={{color: '#9ca3af'}}>Overdue</div>
-            <div className="stat-num" style={{fontWeight: '700', fontSize: '1.375rem'}}>{stats.overdue}</div>
-          </div>
-          <div className="card" style={{border: '1px solid rgba(255,255,255,0.12)', borderRadius: '1rem', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(8px)', padding: '1rem'}}>
-            <div style={{color: '#9ca3af'}}>Due in 2 days</div>
-            <div className="stat-num" style={{fontWeight: '700', fontSize: '1.375rem'}}>{stats.soon}</div>
-          </div>
-          <div className="card" style={{border: '1px solid rgba(255,255,255,0.12)', borderRadius: '1rem', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(8px)', padding: '1rem'}}>
-            <div style={{color: '#9ca3af'}}>Total Active</div>
-            <div className="stat-num" style={{fontWeight: '700', fontSize: '1.375rem'}}>{stats.total}</div>
-          </div>
+      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+        {/* Stats Row */}
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[
+            {label: 'Overdue', value: 3},
+            {label: 'Due in 2 days', value: 5},
+            {label: 'Total Active', value: 18},
+            {label: 'Completed (30d)', value: 54},
+          ].map((s, i) => (
+            <div key={i} className="group rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-4 hover:from-white/[0.08] transition">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-zinc-400">{s.label}</p>
+                <div className="h-8 w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
+                </div>
+              </div>
+              <div className="mt-3 flex items-end justify-between">
+                <span className="text-3xl font-semibold tracking-tight">{s.value}</span>
+                <span className="text-xs text-emerald-300/80 bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-lg">+2 this week</span>
+              </div>
+            </div>
+          ))}
         </section>
 
-        {/* Filters */}
-        <section className="toolbar card" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.75rem', padding: '.5rem .75rem', marginBottom: '.75rem', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '1rem', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(8px)'}}>
-          <div className="toolbar-left" style={{display: 'flex', gap: '.5rem', alignItems: 'center'}}>
-            {['all', 'overdue', 'soon', 'ok', 'completed'].map(filterType => (
-              <button
-                key={filterType}
-                onClick={() => setFilter(filterType)}
-                className="filterBtn btn"
-                style={{
-                  padding: '.5rem .75rem',
-                  borderRadius: '.75rem',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  fontWeight: '600',
-                  background: filter === filterType ? 'rgba(79,70,229,0.25)' : 'rgba(255,255,255,0.06)',
-                  color: '#f5f5f5'
-                }}
-              >
-                {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+        {/* Toolbar */}
+        <section className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="flex overflow-x-auto gap-2">
+            {['All','Overdue','Soon','OK','Completed'].map((t, i)=> (
+              <button key={i} className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap ${i===0 ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30' : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:bg-white/[0.08]'}`}>
+                {t}
               </button>
             ))}
           </div>
-          <div className="toolbar-right" style={{display: 'flex', gap: '.5rem', alignItems: 'center'}}>
-            <input
-              type="search"
-              placeholder="Search tasks…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input"
-              style={{background: 'rgba(255,255,255,0.06)', color: '#f5f5f5', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '.75rem', padding: '.5rem .75rem', outline: 'none'}}
-            />
-            <button
-              onClick={handleCreateTask}
-              className="btn"
-              style={{padding: '.5rem .75rem', borderRadius: '.75rem', border: '1px solid rgba(79,70,229,0.4)', fontWeight: '600', background: 'rgba(79,70,229,0.25)', color: '#f5f5f5'}}
-            >
-              ➕ Add Task
+          <div className="md:ml-auto flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-none">
+              <input className="w-full md:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                placeholder="Search tasks..." />
+              <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
+            </div>
+            <button className="inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
+              Add Task
             </button>
           </div>
         </section>
 
-        {/* Task list */}
-        <section id="taskList" className="list" style={{display: 'grid', gap: '.75rem'}}>
-          {filteredTasks.length === 0 ? (
-            <div className="empty-state" style={{textAlign: 'center', padding: '3rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem'}}>
-              <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="10" y="20" width="60" height="40" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" strokeWidth="2"/>
-                <rect x="22" y="32" width="36" height="8" rx="2" fill="#9ca3af"/>
-                <rect x="22" y="44" width="24" height="6" rx="2" fill="#9ca3af"/>
-                <circle cx="40" cy="60" r="4" fill="#4f46e5"/>
-              </svg>
-              <div style={{color: '#9ca3af', fontSize: '1.1rem'}}>No tasks yet! Click <b>Add Task</b> to get started.</div>
+        {/* Content Grid */}
+        <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Left: Today & Upcoming */}
+          <div className="xl:col-span-2 space-y-6">
+            {/* Today */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
+              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Today</h2>
+                <span className="text-xs text-zinc-400">3 due · 1 overdue</span>
+              </div>
+              <ul className="divide-y divide-white/10">
+                {[
+                  {title: 'Kitchen — take out trash', tag: 'Apartment', due: 'Today 7:00 PM', priority: 'High'},
+                  {title: 'Bathroom — scrub sink & mirror', tag: 'Cleaning', due: 'Today 8:30 PM', priority: 'Med'},
+                  {title: 'Laundry — darks', tag: 'Weekly', due: 'Today 9:00 PM', priority: 'Low'},
+                ].map((t, i)=> (
+                  <li key={i} className="px-5 py-4 flex items-start gap-4 hover:bg-white/[0.04]">
+                    <input type="checkbox" className="mt-1.5 h-5 w-5 rounded-md border-white/20 bg-white/5" />
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-zinc-100">{t.title}</p>
+                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-400/15 border border-indigo-400/30 text-indigo-200">{t.tag}</span>
+                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-400/10 border border-emerald-400/30 text-emerald-200">{t.due}</span>
+                        <span className="ml-auto text-[11px] px-2 py-0.5 rounded-md bg-rose-400/10 border border-rose-400/30 text-rose-200">{t.priority}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-zinc-400">Last done 4d ago · repeats weekly</p>
+                    </div>
+                    <button className="self-center text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">Details</button>
+                  </li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            filteredTasks.map(task => (
-              <TaskCard
-                key={task._id}
-                task={task}
-                onEdit={() => handleEditTask(task)}
-                onMarkDone={() => handleMarkDone(task._id)}
-                onDelete={() => handleDeleteTask(task._id)}
-              />
-            ))
-          )}
+
+            {/* Upcoming */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
+              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Upcoming (Next 7 days)</h2>
+                <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">View calendar</button>
+              </div>
+              <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  {d:'Fri', t:'9:00 AM', name:'Water plants', list:'Home'},
+                  {d:'Sat', t:'10:30 AM', name:'Vacuum living room', list:'Cleaning'},
+                  {d:'Sun', t:'7:00 PM', name:'Meal prep', list:'Kitchen'},
+                  {d:'Mon', t:'All day', name:'Pay utilities', list:'Finance'},
+                  {d:'Wed', t:'6:30 PM', name:'Mop floors', list:'Cleaning'},
+                  {d:'Thu', t:'8:00 PM', name:'Laundry — whites', list:'Weekly'},
+                ].map((c, i)=> (
+                  <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-zinc-400">{c.d} · {c.t}</div>
+                      <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10">{c.list}</span>
+                    </div>
+                    <p className="mt-2 font-medium">{c.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Insights */}
+          <aside className="space-y-6">
+            {/* Progress */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">This Week</h3>
+                <span className="text-xs text-zinc-400">Goal: 20 tasks</span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                {[{k:'Done',v:12},{k:'Active',v:8},{k:'Overdue',v:3}].map((m,i)=>(
+                  <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
+                    <p className="text-xs text-zinc-400">{m.k}</p>
+                    <p className="mt-1 text-2xl font-semibold">{m.v}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span className="text-zinc-400">Completion</span>
+                  <span className="text-zinc-300">60%</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                  <div className="h-full w-[60%] bg-emerald-500/60" />
+                </div>
+              </div>
+            </div>
+
+            {/* Streaks */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <h3 className="font-semibold">Streaks</h3>
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                {[{k:'Daily',v:'5 days'},{k:'Weekly',v:'8 weeks'}].map((s,i)=>(
+                  <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
+                    <p className="text-xs text-zinc-400">{s.k}</p>
+                    <p className="mt-1 text-lg font-semibold">{s.v}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs text-zinc-400">Tip: ⌘/Ctrl + D marks the first task done.</p>
+            </div>
+
+            {/* Lists */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Lists</h3>
+                <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">Manage</button>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {[
+                  {name:'Cleaning', count:7},
+                  {name:'Kitchen', count:5},
+                  {name:'Finance', count:3},
+                  {name:'Groceries', count:2},
+                ].map((l,i)=> (
+                  <li key={i} className="flex items-center justify-between rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70"/>
+                      <p className="text-sm">{l.name}</p>
+                    </div>
+                    <span className="text-xs text-zinc-400">{l.count} active</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
         </section>
+      </main>
 
-        <footer className="footer muted" style={{marginTop: '1rem', color: '#9ca3af', textAlign: 'center', padding: '1rem 0'}}>
-          Local-first. Data lives in your browser. Tip: ⌘/Ctrl + D marks the first task done.
-        </footer>
-      </div>
-
-      {/* Task Modal */}
-      {showTaskModal && (
-        <TaskModal
-          task={editingTask}
-          onClose={() => {
-            setShowTaskModal(false)
-            setEditingTask(null)
-          }}
-          onSave={(taskData) => {
-            if (editingTask) {
-              updateTaskMutation.mutate({ id: editingTask._id, ...taskData })
-            } else {
-              createTaskMutation.mutate(taskData)
-            }
-          }}
-        />
-      )}
+      <footer className="mx-auto max-w-7xl px-6 py-10 text-center text-xs text-zinc-500">
+        Local‑first. Data lives in your browser.
+      </footer>
     </div>
   )
 }
 
-const TaskCard = ({ task, onEdit, onMarkDone, onDelete }) => {
-  const status = getTaskStatus(task)
-  const statusConfig = getStatusConfig(status)
-  const today = new Date().toISOString().split('T')[0]
-  const isCompletedToday = task.lastCompleted === today
-
-  return (
-    <div className="card item" style={{
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: '1rem',
-      background: 'rgba(255,255,255,0.06)',
-      backdropFilter: 'blur(8px)',
-      padding: '1rem',
-      borderLeft: status === 'overdue' ? '4px solid #ef4444' : status === 'soon' ? '4px solid #f59e0b' : '4px solid #10b981'
-    }}>
-      <div className="item-top" style={{display: 'flex', justifyContent: 'space-between', gap: '.75rem', alignItems: 'flex-start'}}>
-        <div className="item-main" style={{flex: 1}}>
-          <div className="item-line" style={{display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '.5rem'}}>
-            <h3 className="name" style={{fontWeight: '700', fontSize: '1.05rem', color: '#f5f5f5'}}>{task.name}</h3>
-            <span className="tag statusTag" style={{
-              fontSize: '.75rem',
-              padding: '.2rem .5rem',
-              borderRadius: '9999px',
-              border: '1px solid rgba(255,255,255,0.12)',
-              fontWeight: '600',
-              ...(status === 'overdue' ? {borderColor: '#ef4444aa', color: '#fff', background: '#ef4444cc'} :
-                  status === 'soon' ? {borderColor: '#f59e0baa', color: '#fff', background: '#f59e0bcc'} :
-                  {borderColor: '#10b981aa', color: '#fff', background: '#10b981cc'})
-            }}>
-              {statusConfig.label}
-            </span>
-            {task.pinned && (
-              <span className="tag pinnedTag" style={{fontSize: '.75rem', padding: '.2rem .5rem', borderRadius: '9999px', border: '1px solid rgba(79,70,229,0.3)', color: '#4f46e5', background: 'rgba(79,70,229,0.2)'}}>
-                Pinned
-              </span>
-            )}
-            {isCompletedToday && (
-              <span className="tag completedTag" style={{fontSize: '.75rem', padding: '.2rem .5rem', borderRadius: '9999px', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', background: 'rgba(16,185,129,0.2)'}}>
-                Completed today
-              </span>
-            )}
-          </div>
-          
-          <div className="muted details" style={{color: '#9ca3af', fontSize: '.9rem', marginBottom: '.5rem'}}>
-            Repeat: {task.frequencyDays} days • Last done: {task.lastDone ? new Date(task.lastDone).toLocaleDateString() : '— (never)'}
-          </div>
-
-          {task.assignedTo && (
-            <div className="xsmall assignment" style={{fontSize: '.8rem', color: '#9ca3af', marginBottom: '.25rem'}}>
-              Assigned to: {task.assignedTo}
-            </div>
-          )}
-
-          {task.lastCompletedBy && (
-            <div className="xsmall history" style={{fontSize: '.8rem', color: '#9ca3af', marginBottom: '.25rem'}}>
-              Last completed by: {task.lastCompletedBy}
-            </div>
-          )}
-
-          {task.notes && (
-            <div className="xsmall notes" style={{fontSize: '.8rem', color: '#9ca3af'}}>
-              {task.notes}
-            </div>
-          )}
-        </div>
-
-        <div className="item-actions" style={{display: 'flex', gap: '.5rem'}}>
-          <button
-            onClick={onMarkDone}
-            className="btn markBtn"
-            title="Mark Done"
-            style={{
-              padding: '.5rem',
-              borderRadius: '.75rem',
-              border: '1px solid rgba(255,255,255,0.12)',
-              fontWeight: '600',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#f5f5f5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="10" cy="10" r="9" stroke="#4f46e5" strokeWidth="2"/>
-              <path d="M6 10.5l2.5 2.5L14 7.5" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <button
-            onClick={onEdit}
-            className="btn editBtn"
-            title="Edit"
-            style={{
-              padding: '.5rem',
-              borderRadius: '.75rem',
-              border: '1px solid rgba(255,255,255,0.12)',
-              fontWeight: '600',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#f5f5f5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 13.5V16h2.5l7.1-7.1a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0L4 13.5z" stroke="#4f46e5" strokeWidth="2"/>
-              <path d="M12.5 6.5l1.5 1.5" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
-          <button
-            onClick={onDelete}
-            className="btn danger deleteBtn"
-            title="Delete"
-            style={{
-              padding: '.5rem',
-              borderRadius: '.75rem',
-              border: '1px solid #ef4444aa',
-              fontWeight: '600',
-              background: 'rgba(239,68,68,0.1)',
-              color: '#ef4444',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="5" y="6" width="10" height="9" rx="2" stroke="#ef4444" strokeWidth="2"/>
-              <path d="M8 9v4M12 9v4" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M3 6h14" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M8 3h4" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function getTaskStatus(task) {
-  if (!task.lastDone) return 'overdue'
-  
-  const lastDone = new Date(task.lastDone)
-  const now = new Date()
-  const daysSince = Math.floor((now - lastDone) / (1000 * 60 * 60 * 24))
-  const daysUntilDue = task.frequencyDays - daysSince
-  
-  if (daysUntilDue <= 0) return 'overdue'
-  if (daysUntilDue <= 2) return 'soon'
-  return 'ok'
-}
-
-function getStatusConfig(status) {
-  switch (status) {
-    case 'overdue':
-      return {
-        label: 'Overdue',
-        badgeClass: 'status-overdue'
-      }
-    case 'soon':
-      return {
-        label: 'Due Soon',
-        badgeClass: 'status-soon'
-      }
-    case 'ok':
-      return {
-        label: 'On Track',
-        badgeClass: 'status-ok'
-      }
-    default:
-      return {
-        label: 'Unknown',
-        badgeClass: 'status-ok'
-      }
-  }
-}
-
-export default Dashboard
+ 

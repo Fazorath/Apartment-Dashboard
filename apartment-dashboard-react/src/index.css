@@ -2,11 +2,8 @@
 @import "tailwindcss";
 @reference "tailwindcss";
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* Avoid universal margin/padding reset so Tailwind spacing utilities (space-x/y, mt/mb, px/py) behave as expected */
+* { box-sizing: border-box; }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Roboto', sans-serif;
