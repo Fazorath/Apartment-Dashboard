@@ -72,15 +72,6 @@ const Login = () => {
       {/* Main content */}
       <main className="relative z-10 flex min-h-screen items-center justify-center p-6 md:translate-y-[-6vh]">
         <div className="w-full max-w-[420px] md:translate-x-[-8%]">
-          {/* Brand */}
-          <div className="mb-6 flex items-center justify-center gap-3 text-sm text-neutral-300">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                <User className="h-3 w-3 text-white" />
-              </div>
-              <span className="font-medium">Roommate Hub</span>
-            </div>
-          </div>
 
           {/* Glassmorphism Card */}
           <section 
@@ -91,7 +82,7 @@ const Login = () => {
             {/* Main Content Container with Consistent Vertical Rhythm */}
             <div className="flex flex-col gap-5">
               <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
-                {isLogin ? 'Welcome to Roommate Hub' : 'Create Your Account'}
+                {isLogin ? 'Roommate Dash' : 'Create Your Account'}
               </h1>
               <p className="text-[14px] text-neutral-400 leading-[1.45] text-center">
                 {isLogin ? "Let's keep your chores in check." : 'Organize tasks, live better together.'}
