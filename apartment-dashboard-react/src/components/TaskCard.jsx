@@ -107,22 +107,22 @@ const TaskCard = ({
   if (variant === 'upcoming') {
     return (
       <div 
-        className="rounded-xl border border-white/10 bg-[#111217] p-4 hover:bg-white/[0.04] transition-colors"
+        className="rounded-lg lg:rounded-xl border border-white/10 bg-[#111217] p-3 lg:p-4 hover:bg-white/[0.04] transition-colors"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-zinc-400">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs lg:text-sm text-zinc-400">
             {task.assignedTo && `${task.assignedTo} · `}
             {statusConfig.priority}
           </div>
-          <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10">
+          <span className="text-[10px] lg:text-[11px] px-1.5 lg:px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10">
             {task.assignedTo || 'General'}
           </span>
         </div>
-        <p className="mt-2 font-medium text-zinc-100">{task.name}</p>
+        <p className="text-sm lg:text-base font-medium text-zinc-100">{task.name}</p>
         {task.notes && (
-          <p className="mt-1 text-xs text-zinc-500 line-clamp-2">{task.notes}</p>
+          <p className="mt-1 text-xs lg:text-sm text-zinc-500 line-clamp-2">{task.notes}</p>
         )}
       </div>
     )
@@ -131,34 +131,34 @@ const TaskCard = ({
   // Default variant (main task list)
   return (
     <li 
-      className="px-5 py-4 flex items-start gap-4 hover:bg-white/[0.04] transition-colors"
+      className="px-4 lg:px-5 py-3 lg:py-4 flex items-start gap-3 lg:gap-4 hover:bg-white/[0.04] transition-colors"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <TaskCheckbox task={task} onComplete={onComplete} />
       
-      <div className="flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium text-zinc-100">{task.name}</p>
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 lg:gap-2">
+          <p className="text-sm lg:text-base font-medium text-zinc-100 truncate">{task.name}</p>
           
           {task.assignedTo && (
-            <span className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-400/15 border border-indigo-400/30 text-indigo-200">
+            <span className="text-[10px] lg:text-[11px] px-1.5 lg:px-2 py-0.5 rounded-md bg-indigo-400/15 border border-indigo-400/30 text-indigo-200 flex-shrink-0">
               {task.assignedTo}
             </span>
           )}
           
-          <span className={`text-[11px] px-2 py-0.5 rounded-md ${statusConfig.className}`}>
+          <span className={`text-[10px] lg:text-[11px] px-1.5 lg:px-2 py-0.5 rounded-md ${statusConfig.className} flex-shrink-0`}>
             {statusConfig.label}
           </span>
           
           {task.pinned && (
-            <span className="text-[11px] px-2 py-0.5 rounded-md bg-yellow-400/10 border border-yellow-400/30 text-yellow-200">
+            <span className="text-[10px] lg:text-[11px] px-1.5 lg:px-2 py-0.5 rounded-md bg-yellow-400/10 border border-yellow-400/30 text-yellow-200 flex-shrink-0">
               📌 Pinned
             </span>
           )}
         </div>
         
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-xs lg:text-sm text-zinc-400">
           {daysSince !== null 
             ? `Last done ${daysSince}d ago · repeats every ${task.frequencyDays} days`
             : `Never done · repeats every ${task.frequencyDays} days`
@@ -166,14 +166,14 @@ const TaskCard = ({
         </p>
         
         {task.notes && (
-          <p className="mt-1 text-xs text-zinc-500 line-clamp-2">{task.notes}</p>
+          <p className="mt-1 text-xs lg:text-sm text-zinc-500 line-clamp-2">{task.notes}</p>
         )}
       </div>
       
       {showDetails && (
         <button 
           onClick={() => onEdit(task)}
-          className={`self-center text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08] transition-colors ${
+          className={`self-center text-xs lg:text-sm rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08] transition-colors flex-shrink-0 ${
             isHovered ? 'opacity-100' : 'opacity-0'
           }`}
         >

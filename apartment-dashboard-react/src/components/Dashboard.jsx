@@ -311,58 +311,80 @@ export default function Dashboard() {
     <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200">
       {/* App Shell */}
       <header className="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-[#0b0c10]/70 border-b border-white/10">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-emerald-400" fill="currentColor"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.258.764a1 1 0 0 1 .554 1.705l-3.8 3.705.897 5.225a1 1 0 0 1-1.451 1.054L12 17.77l-4.684 2.2a1 1 0 0 1-1.451-1.055l.897-5.224-3.8-3.705a1 1 0 0 1 .554-1.705l5.258-.764L11.106 2.553A1 1 0 0 1 12 2z"/></svg>
+        <div className="mx-auto max-w-7xl px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
+            <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 lg:h-5 lg:w-5 text-emerald-400" fill="currentColor"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.258.764a1 1 0 0 1 .554 1.705l-3.8 3.705.897 5.225a1 1 0 0 1-1.451 1.054L12 17.77l-4.684 2.2a1 1 0 0 1-1.451-1.055l.897-5.224-3.8-3.705a1 1 0 0 1 .554-1.705l5.258-.764L11.106 2.553A1 1 0 0 1 12 2z"/></svg>
             </div>
-        <div>
-              <h1 className="text-2xl font-semibold tracking-tight">412 Dashboard</h1>
-              <p className="text-sm text-zinc-400">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg lg:text-2xl font-semibold tracking-tight truncate">412 Dashboard</h1>
+              <p className="text-xs lg:text-sm text-zinc-400 hidden sm:block">
                 Recurring chores with last‑done dates & due status
               </p>
             </div>
-        </div>
+          </div>
 
-          <div className="flex items-center gap-3">
-          <button
+          <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
+            {/* Mobile: Only show Add Task button */}
+            <button
               onClick={() => handleOpenModal()}
-              className="hidden md:flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition"
-          >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 2a1 1 0 0 1 1 1v8h8a1 1 0 1 1 0 2h-8v8a1 1 0 1 1-2 0v-8H2a1 1 0 1 1 0-2h8V3a1 1 0 0 1 1-1z"/></svg>
-              New List
-          </button>
-            <button onClick={() => setShowSettings(true)} className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
-            <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
+              className="lg:hidden inline-flex items-center gap-1 rounded-lg bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-2 py-1.5 text-xs hover:bg-indigo-500/25"
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
+              <span className="hidden xs:inline">Add</span>
+            </button>
+            
+            {/* Desktop: Show all buttons */}
+            <div className="hidden lg:flex items-center gap-3">
+              <button
+                onClick={() => handleOpenModal()}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H2a1 1 0 1 1 0-2h6V3a1 1 0 0 1 1-1z"/></svg>
+                New List
+              </button>
+              <button onClick={() => setShowSettings(true)} className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
+              <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
+            </div>
+            
+            {/* Mobile: Settings and Logout buttons */}
+            <div className="lg:hidden flex items-center gap-1">
+              <button onClick={() => setShowSettings(true)} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-xs border border-white/10 hover:bg-white/[0.08] transition">
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5M19.43 12.97c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/></svg>
+              </button>
+              <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-lg bg-rose-500/15 text-rose-300 px-2 py-1.5 text-xs border border-rose-500/30 hover:bg-rose-500/20 transition">
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 lg:px-6 py-6 lg:py-8 space-y-6 lg:space-y-8">
         {/* Stats Row */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           {[
             {label: 'Overdue', value: stats.overdue, change: stats.weeklyChanges.overdue},
-            {label: 'Due in 2 days', value: stats.soon, change: stats.weeklyChanges.soon},
-            {label: 'Total Active', value: stats.total, change: stats.weeklyChanges.active},
-            {label: 'Completed (30d)', value: stats.completed, change: stats.weeklyChanges.completed},
+            {label: 'Due Soon', value: stats.soon, change: stats.weeklyChanges.soon},
+            {label: 'Active', value: stats.total, change: stats.weeklyChanges.active},
+            {label: 'Completed', value: stats.completed, change: stats.weeklyChanges.completed},
           ].map((s, i) => (
-            <div key={i} className="group rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-4 hover:from-white/[0.08] transition">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-zinc-400">{s.label}</p>
-                <div className="h-8 w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
+            <div key={i} className="group rounded-xl lg:rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-3 lg:p-4 hover:from-white/[0.08] transition">
+              <div className="flex items-center justify-between mb-2 lg:mb-3">
+                <p className="text-xs lg:text-sm text-zinc-400 truncate">{s.label}</p>
+                <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 lg:h-4 lg:w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
                 </div>
               </div>
-              <div className="mt-3 flex items-end justify-between">
-                <span className="text-3xl font-semibold tracking-tight">{s.value}</span>
+              <div className="flex items-end justify-between">
+                <span className="text-xl lg:text-3xl font-semibold tracking-tight">{s.value}</span>
                 {s.change !== 0 && (
-                  <span className={`text-xs px-2 py-1 rounded-lg border ${
+                  <span className={`text-xs px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-md lg:rounded-lg border ${
                     s.change > 0 
                       ? 'text-emerald-300/80 bg-emerald-500/10 border-emerald-500/30' 
                       : 'text-rose-300/80 bg-rose-500/10 border-rose-500/30'
                   }`}>
-                    {s.change > 0 ? '+' : ''}{s.change} this week
+                    {s.change > 0 ? '+' : ''}{s.change}
                   </span>
                 )}
               </div>
@@ -371,13 +393,13 @@ export default function Dashboard() {
         </section>
 
         {/* Toolbar */}
-        <section className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="flex overflow-x-auto gap-2">
+        <section className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex overflow-x-auto gap-2 pb-1 sm:pb-0">
             {['All','Overdue','Soon','Completed'].map((filter, i)=> (
               <button
                 key={i} 
                 onClick={() => setActiveFilter(filter)}
-                className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
+                className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap flex-shrink-0 ${
                   activeFilter === filter 
                     ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30' 
                     : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:bg-white/[0.08]'
@@ -387,10 +409,10 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-          <div className="md:ml-auto flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:flex-none">
-            <input
-                className="w-full md:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+          <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none sm:w-80">
+              <input
+                className="w-full sm:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
                 placeholder="Search tasks..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -399,7 +421,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
+              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
               Add Task
@@ -408,13 +430,13 @@ export default function Dashboard() {
         </section>
 
         {/* Content Grid */}
-        <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Left: Today & Upcoming */}
-          <div className="xl:col-span-2 space-y-6">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          {/* Left: Tasks */}
+          <div className="lg:col-span-2 space-y-4 lg:space-y-6">
             {/* Tasks */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
-              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">
+            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03]">
+              <div className="px-4 lg:px-5 py-3 lg:py-4 border-b border-white/10 flex items-center justify-between">
+                <h2 className="text-base lg:text-lg font-semibold">
                   {activeFilter === 'All' ? 'All Tasks' : activeFilter}
                 </h2>
                 <span className="text-xs text-zinc-400">
@@ -423,7 +445,7 @@ export default function Dashboard() {
               </div>
               <ul className="divide-y divide-white/10">
                 {getFilteredTasks().length === 0 ? (
-                  <li className="px-5 py-8 text-center text-zinc-400">
+                  <li className="px-4 lg:px-5 py-6 lg:py-8 text-center text-zinc-400">
                     {searchQuery ? 'No tasks match your search' : `No ${activeFilter.toLowerCase()} tasks`}
                   </li>
                 ) : (
@@ -442,14 +464,14 @@ export default function Dashboard() {
             </div>
 
             {/* Upcoming */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
-              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Upcoming (Next 7 days)</h2>
+            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03]">
+              <div className="px-4 lg:px-5 py-3 lg:py-4 border-b border-white/10 flex items-center justify-between">
+                <h2 className="text-base lg:text-lg font-semibold">Upcoming (Next 7 days)</h2>
                 <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">View calendar</button>
               </div>
-              <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-4 lg:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
                 {getUpcomingTasks().length === 0 ? (
-                  <div className="col-span-full text-center text-zinc-400 py-8">
+                  <div className="col-span-full text-center text-zinc-400 py-6 lg:py-8">
                     No upcoming tasks this week! 🎉
                   </div>
                 ) : (
@@ -469,26 +491,26 @@ export default function Dashboard() {
           </div>
 
           {/* Right: Insights */}
-          <aside className="space-y-6">
+          <aside className="space-y-4 lg:space-y-6">
             {/* Progress */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:p-5">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">This Week</h3>
+                <h3 className="text-sm lg:text-base font-semibold">This Week</h3>
                 <span className="text-xs text-zinc-400">Goal: {Math.max(20, stats.total)} tasks</span>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-4">
+              <div className="mt-3 lg:mt-4 grid grid-cols-3 gap-3 lg:gap-4">
                 {[
                   {k:'Done',v:stats.completed},
                   {k:'Active',v:stats.total},
                   {k:'Overdue',v:stats.overdue}
                 ].map((m,i)=>(
-                  <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
+                  <div key={i} className="rounded-lg lg:rounded-xl border border-white/10 bg-[#111217] p-3 lg:p-4">
                     <p className="text-xs text-zinc-400">{m.k}</p>
-                    <p className="mt-1 text-2xl font-semibold">{m.v}</p>
+                    <p className="mt-1 text-lg lg:text-2xl font-semibold">{m.v}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-4">
+              <div className="mt-3 lg:mt-4">
                 <div className="flex items-center justify-between text-xs mb-2">
                   <span className="text-zinc-400">Completion</span>
                   <span className="text-zinc-300">
@@ -505,9 +527,9 @@ export default function Dashboard() {
             </div>
 
             {/* Lists */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:p-5">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Lists</h3>
+                <h3 className="text-sm lg:text-base font-semibold">Lists</h3>
                 <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">Manage</button>
               </div>
               <ul className="mt-3 space-y-2">
@@ -528,9 +550,9 @@ export default function Dashboard() {
                     </li>
                   ) : (
                     Object.entries(taskGroups).map(([name, count], i) => (
-                      <li key={i} className="flex items-center justify-between rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
-                        <div className="flex items-center gap-3">
-                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70"/>
+                      <li key={i} className="flex items-center justify-between rounded-lg lg:rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
+                        <div className="flex items-center gap-2 lg:gap-3">
+                          <span className="h-2 w-2 lg:h-2.5 lg:w-2.5 rounded-full bg-emerald-400/70"/>
                           <p className="text-sm">{name}</p>
                         </div>
                         <span className="text-xs text-zinc-400">{count} active</span>
@@ -544,9 +566,9 @@ export default function Dashboard() {
         </section>
       </main>
 
-      <footer className="mx-auto max-w-7xl px-6 py-10 text-center text-xs text-zinc-500">
+      <footer className="mx-auto max-w-7xl px-4 lg:px-6 py-6 lg:py-10 text-center text-xs text-zinc-500">
         Local‑first. Data lives in your browser.
-        </footer>
+      </footer>
 
       {/* Task Modal */}
       {showModal && (
