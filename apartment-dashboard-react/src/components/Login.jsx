@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Mail, Lock, Eye, EyeOff, Apple, User } from 'lucide-react'
+import { Lock, Eye, EyeOff, User } from 'lucide-react'
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true)
@@ -51,147 +51,164 @@ const Login = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-neutral-950 text-neutral-50 antialiased">
-      {/* Subtle grid + spotlight */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:32px_32px]" />
-        <div className="absolute left-1/2 top-0 h-[620px] w-[620px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,255,255,0.14),rgba(255,255,255,0)_70%)]" />
-      </div>
+    <div className="min-h-screen bg-[#0B0B0C] text-[#EDEEF2] antialiased relative">
+      {/* Vignette background */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_50%_at_50%_30%,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0)_60%)]"></div>
+      
+      {/* Optional grain texture */}
+      <div 
+        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-soft-light"
+        style={{
+          backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'><rect width='4' height='4' fill='%23000'/><circle cx='0.5' cy='0.5' r='0.5' fill='%23fff' opacity='0.3'/></svg>")`
+        }}
+      ></div>
 
-      {/* Center */}
-      <div className="relative flex min-h-screen items-center justify-center px-6 md:px-8">
-        <div className="w-full max-w-[560px] md:max-w-[640px]" style={{ animation: 'slideUp 0.6s ease-out' }}>
+      {/* Main content */}
+      <main className="relative z-10 flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-[420px]">
           {/* Brand */}
-          <div className="mb-8 flex items-center justify-center gap-2 text-neutral-300">
-            <User className="h-5 w-5" />
-            <span className="text-sm tracking-wide">Apartment Dashboard</span>
+          <div className="mb-4 flex items-center gap-2 text-sm text-[#9EA2AF]">
+            <User className="h-4 w-4 opacity-80" />
+            <span>Apartment Dashboard</span>
           </div>
 
           {/* Card */}
-          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/5 p-10 md:p-12 shadow-[0_10px_60px_-15px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-            {/* Light sheen */}
-            <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-white/10 [mask-image:linear-gradient(to_bottom,white,transparent_60%)]" />
+          <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-[0_10px_30px_rgba(0,0,0,.6),inset_0_1px_0_rgba(255,255,255,.04)]">
+            <h1 className="text-[32px] font-semibold tracking-tight leading-[1.1]">
+              {isLogin ? 'Sign in' : 'Create account'}
+            </h1>
+            <p className="mt-1 text-sm text-[#9EA2AF] leading-[1.45]">
+              {isLogin ? 'Welcome back to your organized home.' : 'Join your roommates and start organizing.'}
+            </p>
 
-            <div className="relative">
-              <h1 className="text-center text-4xl md:text-5xl font-semibold tracking-tight">
-                {isLogin ? 'Sign in' : 'Create account'}
-              </h1>
-              <p className="mt-4 text-center text-base md:text-lg text-neutral-400">
-                {isLogin ? 'Welcome back to your organized home' : 'Join your roommates and start organizing'}
-              </p>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              {/* Username */}
+              <label className="block text-sm font-medium text-[#EDEEF2]">Username</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Enter your username"
+                  autoComplete="username"
+                  className="w-full h-12 rounded-xl bg-white/5 border border-white/10 px-4 outline-none
+                           placeholder:text-[#6A6E79] text-[15px] transition-all duration-120 ease-out
+                           focus:border-white/20 focus:bg-white/10 focus:ring-4 focus:ring-[#5AC8FA]/20"
+                  required
+                />
+              </div>
 
-              <form onSubmit={handleSubmit} className="mt-10 md:mt-12 space-y-6 md:space-y-7">
-                {/* Username */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-300">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      placeholder="Enter your username"
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 py-4 text-base text-neutral-50 outline-none transition placeholder:text-neutral-500 focus:border-white/20 focus:ring-2 focus:ring-white/10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-300">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="••••••••"
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-12 py-4 text-base text-neutral-50 outline-none transition placeholder:text-neutral-500 focus:border-white/20 focus:ring-2 focus:ring-white/10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 transition hover:text-neutral-200"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                  <div className="flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 backdrop-blur">
-                    <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">!</span>
-                    </div>
-                    <p className="text-red-200 text-sm">{error}</p>
-                  </div>
-                )}
-
-                {/* CTA Button */}
+              {/* Password */}
+              <label className="block text-sm font-medium text-[#EDEEF2]">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full h-12 rounded-xl bg-white/5 border border-white/10 px-4 pr-12 outline-none
+                           placeholder:text-[#6A6E79] text-[15px] transition-all duration-120 ease-out
+                           focus:border-white/20 focus:bg-white/10 focus:ring-4 focus:ring-[#5AC8FA]/20"
+                  required
+                />
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-2xl bg-white py-4 text-neutral-900 text-base font-semibold transition hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-2 my-auto h-9 w-9 rounded-lg text-[#6A6E79] hover:text-[#EDEEF2]
+                           hover:bg-white/5 focus:outline-none focus:ring-4 focus:ring-[#5AC8FA]/20 transition-all duration-160 ease-out"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-neutral-900/30 border-t-neutral-900 rounded-full animate-spin"></div>
-                      <span>Processing...</span>
-                    </div>
-                  ) : (
-                    <span>{isLogin ? 'Sign in' : 'Create account'}</span>
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
+              </div>
 
-                {/* Divider */}
-                <div className="flex items-center gap-4">
-                  <div className="h-px flex-1 bg-white/10" />
-                  <span className="text-sm text-neutral-400">or</span>
-                  <div className="h-px flex-1 bg-white/10" />
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center gap-3 rounded-xl border border-[#FF5C5C]/60 bg-[#FF5C5C]/10 p-3 backdrop-blur">
+                  <div className="w-4 h-4 rounded-full bg-[#FF5C5C] flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">!</span>
+                  </div>
+                  <p className="text-[#FF7A7A] text-sm">{error}</p>
                 </div>
+              )}
 
-                {/* Toggle Button */}
-                <div className="text-center">
-                  <button
+              {/* Remember me & Forgot password */}
+              <div className="flex items-center justify-between text-sm">
+                <label className="inline-flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-[#5AC8FA]/20" 
+                  />
+                  <span className="text-[#9EA2AF]">Remember me</span>
+                </label>
+                <a href="#" className="text-[#EDEEF2] hover:text-white underline underline-offset-4 transition-colors duration-160">
+                  Forgot password?
+                </a>
+              </div>
+
+              {/* CTA Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 rounded-full bg-white text-[#0B0B0C] font-semibold tracking-tight
+                         shadow hover:bg-[#E6E7EC] active:bg-[#DCDDE3] active:transform active:translate-y-[1px]
+                         focus:outline-none focus:ring-4 focus:ring-[#5AC8FA]/20
+                         disabled:bg-white/20 disabled:text-white/50 disabled:cursor-not-allowed
+                         transition-all duration-160 ease-out"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-[#0B0B0C]/30 border-t-[#0B0B0C] rounded-full animate-spin"></div>
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <span>{isLogin ? 'Sign in' : 'Create account'}</span>
+                )}
+              </button>
+            </form>
+
+            {/* Divider */}
+            <div className="my-6 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+
+            {/* Toggle Button */}
+            <p className="text-center text-sm text-[#9EA2AF]">
+              {isLogin ? (
+                <>
+                  New here? <button
                     type="button"
                     onClick={() => setIsLogin(!isLogin)}
-                    className="text-neutral-400 hover:text-neutral-100 transition-colors text-sm underline-offset-4 hover:underline"
+                    className="text-[#EDEEF2] hover:text-white underline underline-offset-4 transition-colors duration-160"
                   >
-                    {isLogin ? (
-                      <>
-                        New here? <span className="text-neutral-100">Create an account</span>
-                      </>
-                    ) : (
-                      <>
-                        Already have an account? <span className="text-neutral-100">Sign in</span>
-                      </>
-                    )}
+                    Create an account
                   </button>
-                </div>
-              </form>
+                </>
+              ) : (
+                <>
+                  Already have an account? <button
+                    type="button"
+                    onClick={() => setIsLogin(!isLogin)}
+                    className="text-[#EDEEF2] hover:text-white underline underline-offset-4 transition-colors duration-160"
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+            </p>
 
-              <p className="mt-8 text-center text-xs text-neutral-400">
-                By continuing, you agree to our Terms and Privacy Policy.
-              </p>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <p className="mt-6 text-center text-sm text-neutral-400">
-            Apartment Dashboard — Keep your home organized ✨
-          </p>
+            {/* Legal microcopy */}
+            <p className="mt-4 text-center text-xs text-[#6F7380]">
+              By continuing, you agree to our{' '}
+              <a href="#" className="underline hover:text-[#9EA2AF] transition-colors duration-160">Terms</a>
+              {' '}and{' '}
+              <a href="#" className="underline hover:text-[#9EA2AF] transition-colors duration-160">Privacy Policy</a>.
+            </p>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
