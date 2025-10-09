@@ -63,6 +63,49 @@ The following authentication methods are planned for future implementation:
 4. **Low Priority**: Apple Sign-In integration
 5. **Low Priority**: Multi-authentication strategy
 
+## ✅ Login Page — Remaining Tasks
+
+The current login page is visually complete and functional for basic username/password auth. The items below are still pending to make it production‑ready. Use this as the working checklist.
+
+- [ ] Forgot password flow
+  - [ ] Request reset (email input UI)
+  - [ ] Backend routes: request/reset + email token issuance/verification
+  - [ ] Reset UI (new password + confirm) with token handling
+  - [ ] Success/error states and copy
+- [ ] Social sign‑in
+  - [ ] Google Sign‑In (GIS) button + backend token exchange
+  - [ ] Sign in with Apple button + backend validation
+  - [ ] Account linking/merging for existing users
+- [ ] Email‑based auth hardening
+  - [ ] Switch username to email (or support both)
+  - [ ] Email verification flow (send/verify/resend)
+  - [ ] Password strength meter + guidance
+  - [ ] Caps Lock detection hint on password
+  - [ ] Progressive validation (on blur and on submit)
+- [ ] Security and abuse protections
+  - [ ] Lockout UI for too many failed attempts (with cooldown timer)
+  - [ ] Friendly error messages for 401/429 coming from backend
+  - [ ] Optional 2FA (TOTP/WebAuthn) after password
+  - [ ] Refresh‑token lifecycle and silent reauth (AuthContext)
+- [ ] Accessibility & UX
+  - [ ] ARIA: `aria-invalid`, `aria-describedby` per field on error
+  - [ ] Keyboard: Tab order, Enter submits, focus ring parity
+  - [ ] Screen reader labels for toggles and links
+  - [ ] i18n copy hooks for all texts
+- [ ] Cross‑browser polish
+  - [ ] Verify Safari/iOS Keychain overlay suppression (done via CSS) on devices
+  - [ ] Autofill theming test (Chrome/Edge/Firefox)
+  - [ ] Mobile spacing snapshots at 320/375/414px
+- [ ] Links & routes
+  - [ ] Implement Terms/Privacy routes or external links
+  - [ ] Deep link to register from login and back (already toggles; confirm analytics)
+- [ ] Testing
+  - [ ] Unit tests for AuthContext (login/register/401 handling)
+  - [ ] E2E tests (Cypress): happy path, invalid creds, lockout, reset flow
+- [ ] Deployment config
+  - [ ] Multi‑origin CORS for staging/production
+  - [ ] Env docs for `FRONTEND_URL` and OAuth client IDs
+
 ## 🛠️ Tech Stack
 
 ### Frontend
