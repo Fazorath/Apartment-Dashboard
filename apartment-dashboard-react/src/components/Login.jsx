@@ -101,7 +101,7 @@ const Login = () => {
                   className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
                            text-[15px] text-white transition-all duration-200 ease-out
                            focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                           placeholder-shown:pt-4"
+                           placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
                   required
                 />
                 <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
@@ -125,7 +125,7 @@ const Login = () => {
                   className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pt-6 pb-2 pr-12 outline-none
                            text-[15px] text-white transition-all duration-200 ease-out
                            focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                           placeholder-shown:pt-4"
+                           placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
                   required
                 />
                 <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
