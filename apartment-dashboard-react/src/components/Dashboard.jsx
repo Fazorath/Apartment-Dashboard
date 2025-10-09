@@ -16,6 +16,8 @@ export default function Dashboard() {
   })
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [activeFilter, setActiveFilter] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Fetch tasks and stats
   useEffect(() => {
@@ -126,6 +128,42 @@ export default function Dashboard() {
       total: tasksData.length,
       completed
     })
+  }
+
+  // Filtering and search functions
+  const getFilteredTasks = () => {
+    let filteredTasks = tasks
+
+    // Apply status filter
+    if (activeFilter !== 'All') {
+      filteredTasks = tasks.filter(task => {
+        const status = getTaskStatus(task)
+        switch (activeFilter) {
+          case 'Overdue':
+            return status === 'overdue'
+          case 'Soon':
+            return status === 'soon'
+          case 'OK':
+            return status === 'ok'
+          case 'Completed':
+            return task.lastDone && Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) <= 1
+          default:
+            return true
+        }
+      })
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filteredTasks = filteredTasks.filter(task => 
+        task.name.toLowerCase().includes(query) ||
+        (task.assignedTo && task.assignedTo.toLowerCase().includes(query)) ||
+        (task.notes && task.notes.toLowerCase().includes(query))
+      )
+    }
+
+    return filteredTasks
   }
 
   // Helper functions to categorize tasks
@@ -275,16 +313,28 @@ export default function Dashboard() {
         {/* Toolbar */}
         <section className="flex flex-col md:flex-row md:items-center gap-3">
           <div className="flex overflow-x-auto gap-2">
-            {['All','Overdue','Soon','OK','Completed'].map((t, i)=> (
-              <button key={i} className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap ${i===0 ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30' : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:bg-white/[0.08]'}`}>
-                {t}
+            {['All','Overdue','Soon','OK','Completed'].map((filter, i)=> (
+              <button 
+                key={i} 
+                onClick={() => setActiveFilter(filter)}
+                className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
+                  activeFilter === filter 
+                    ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30' 
+                    : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:bg-white/[0.08]'
+                }`}
+              >
+                {filter}
               </button>
             ))}
           </div>
           <div className="md:ml-auto flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:flex-none">
-              <input className="w-full md:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
-                placeholder="Search tasks..." />
+              <input 
+                className="w-full md:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                placeholder="Search tasks..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
             </div>
             <button 
@@ -301,21 +351,23 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Left: Today & Upcoming */}
           <div className="xl:col-span-2 space-y-6">
-            {/* Today */}
+            {/* Tasks */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Today</h2>
+                <h2 className="text-lg font-semibold">
+                  {activeFilter === 'All' ? 'All Tasks' : activeFilter}
+                </h2>
                 <span className="text-xs text-zinc-400">
-                  {getTodayTasks().filter(t => getTaskStatus(t) === 'soon').length} due · {getTodayTasks().filter(t => getTaskStatus(t) === 'overdue').length} overdue
+                  {getFilteredTasks().length} tasks
                 </span>
               </div>
               <ul className="divide-y divide-white/10">
-                {getTodayTasks().length === 0 ? (
+                {getFilteredTasks().length === 0 ? (
                   <li className="px-5 py-8 text-center text-zinc-400">
-                    No tasks due today! 🎉
+                    {searchQuery ? 'No tasks match your search' : `No ${activeFilter.toLowerCase()} tasks`}
                   </li>
                 ) : (
-                  getTodayTasks().map((task, i) => {
+                  getFilteredTasks().map((task, i) => {
                     const status = getTaskStatus(task)
                     const daysSince = task.lastDone ? Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) : null
                     
@@ -333,9 +385,11 @@ export default function Dashboard() {
                             <span className={`text-[11px] px-2 py-0.5 rounded-md ${
                               status === 'overdue' 
                                 ? 'bg-rose-400/10 border border-rose-400/30 text-rose-200'
-                                : 'bg-emerald-400/10 border border-emerald-400/30 text-emerald-200'
+                                : status === 'soon'
+                                ? 'bg-emerald-400/10 border border-emerald-400/30 text-emerald-200'
+                                : 'bg-blue-400/10 border border-blue-400/30 text-blue-200'
                             }`}>
-                              {status === 'overdue' ? 'Overdue' : 'Due Soon'}
+                              {status === 'overdue' ? 'Overdue' : status === 'soon' ? 'Due Soon' : 'OK'}
                             </span>
                           </div>
                           <p className="mt-1 text-xs text-zinc-400">
