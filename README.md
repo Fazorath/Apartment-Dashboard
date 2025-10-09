@@ -1,7 +1,8 @@
 # Apartment Dashboard
 
 Welcome! This project is a local-first dashboard for managing recurring chores and tasks, designed for roommates to collaborate.
-<img width="1433" height="777" alt="image" src="https://github.com/user-attachments/assets/c0fa64c1-8ccb-40ce-9ea6-942677b79d6a" />
+<img width="1321" height="735" alt="image" src="https://github.com/user-attachments/assets/72e0b9d9-8b51-4e97-b7e8-bdc8c90d3d91" />
+
 
 ## ⚠️ Current Status & Known Issues
 
