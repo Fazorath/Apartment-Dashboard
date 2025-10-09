@@ -40,6 +40,14 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
+/* Hide Safari/iOS Keychain autofill buttons so they don't cover custom icons */
+input::-webkit-credentials-auto-fill-button,
+input::-webkit-contacts-auto-fill-button {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 /* Error helper (works with aria-describedby) */
 .input-error {
   border-color: rgba(255,92,92,.6) !important;
