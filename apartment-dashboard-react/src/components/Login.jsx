@@ -83,7 +83,7 @@ const Login = () => {
           </div>
 
           {/* Glassmorphism Card */}
-          <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-10 sm:p-12 md:p-16 
+          <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-12 sm:p-16 md:p-20 
                           shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.1)]
                           before:absolute before:inset-0 before:rounded-3xl before:p-[1px] 
                           before:bg-gradient-to-br before:from-white/20 before:to-white/5 
