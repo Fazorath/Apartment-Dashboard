@@ -140,7 +140,7 @@ const Login = () => {
                   onClick={() => setShowPassword((s) => !s)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-3 my-auto h-8 w-8 rounded-lg text-neutral-400 hover:text-emerald-400
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-neutral-400 hover:text-emerald-400
                            hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 ease-out"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
