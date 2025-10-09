@@ -83,19 +83,21 @@ const Login = () => {
           </div>
 
           {/* Glassmorphism Card */}
-          <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-8 sm:p-9 md:p-10 
+          <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-10 sm:p-12 md:p-16 
                           shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.1)]
                           before:absolute before:inset-0 before:rounded-3xl before:p-[1px] 
                           before:bg-gradient-to-br before:from-white/20 before:to-white/5 
                           before:-z-10 before:opacity-50">
-            <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
-              {isLogin ? 'Welcome to Roommate Hub' : 'Create Your Account'}
-            </h1>
-            <p className="mt-2 text-[14px] text-neutral-400 leading-[1.45] text-center">
-              {isLogin ? "Let's keep your chores in check." : 'Organize tasks, live better together.'}
-            </p>
+            {/* Main Content Container with Consistent Vertical Rhythm */}
+            <div className="flex flex-col gap-5">
+              <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
+                {isLogin ? 'Welcome to Roommate Hub' : 'Create Your Account'}
+              </h1>
+              <p className="text-[14px] text-neutral-400 leading-[1.45] text-center">
+                {isLogin ? "Let's keep your chores in check." : 'Organize tasks, live better together.'}
+              </p>
 
-            <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               {/* Username - Floating Label */}
               <div className="relative">
                 <input
@@ -160,80 +162,81 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Remember me & Forgot password */}
-              <div className="flex items-center justify-between pt-2 text-sm">
-                <label className="inline-flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
-                    className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-emerald-400/20" 
-                  />
-                  <span className="text-neutral-400">Remember me</span>
-                </label>
-                <a href="#" className="text-neutral-300 hover:text-emerald-400 underline underline-offset-4 transition-colors duration-200 pr-4">
-                  Forgot password?
-                </a>
-              </div>
+                {/* Remember me & Forgot password - Grouped Container */}
+                <div className="flex items-center justify-between text-sm">
+                  <label className="inline-flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-emerald-400/20" 
+                    />
+                    <span className="text-neutral-400">Remember me</span>
+                  </label>
+                  <a href="#" className="text-neutral-300 hover:text-emerald-400 underline underline-offset-4 transition-colors duration-200">
+                    Forgot password?
+                  </a>
+                </div>
 
-              {/* Enhanced CTA Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-6 w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold tracking-tight
-                         shadow-lg hover:shadow-xl hover:from-emerald-400 hover:to-teal-400 
-                         active:transform active:scale-[0.98] active:translate-y-[1px]
-                         focus:outline-none focus:ring-4 focus:ring-emerald-400/30
-                         disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none
-                         relative overflow-hidden transition-all duration-200 ease-out
-                         before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/0 before:via-white/10 before:to-white/0
-                         before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700"
-              >
-                <span className={`relative z-10 ${loading ? "translate-x-[-6px]" : ""}`}>
-                  {isLogin ? 'Sign in' : 'Create account'}
-                </span>
-                {loading && (
-                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin z-10" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="9" stroke="currentColor" opacity=".25" />
-                    <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" />
-                  </svg>
+                {/* Enhanced CTA Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold tracking-tight
+                           shadow-lg hover:shadow-xl hover:from-emerald-400 hover:to-teal-400 
+                           active:transform active:scale-[0.98] active:translate-y-[1px]
+                           focus:outline-none focus:ring-4 focus:ring-emerald-400/30
+                           disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none
+                           relative overflow-hidden transition-all duration-200 ease-out
+                           before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/0 before:via-white/10 before:to-white/0
+                           before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700"
+                >
+                  <span className={`relative z-10 ${loading ? "translate-x-[-6px]" : ""}`}>
+                    {isLogin ? 'Sign in' : 'Create account'}
+                  </span>
+                  {loading && (
+                    <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin z-10" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" opacity=".25" />
+                      <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" />
+                    </svg>
+                  )}
+                </button>
+              </form>
+
+              {/* Separator */}
+              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+
+              {/* Secondary Action - Separated from main form */}
+              <p className="text-center text-sm text-neutral-400">
+                {isLogin ? (
+                  <>
+                    New here? <button
+                      type="button"
+                      onClick={() => setIsLogin(!isLogin)}
+                      className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                    >
+                      Create an account
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account? <button
+                      type="button"
+                      onClick={() => setIsLogin(!isLogin)}
+                      className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
+                    >
+                      Sign in
+                    </button>
+                  </>
                 )}
-              </button>
-            </form>
+              </p>
 
-            {/* Divider */}
-            <div className="my-6 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-
-            {/* Toggle Button */}
-            <p className="text-center text-sm text-neutral-400">
-              {isLogin ? (
-                <>
-                  New here? <button
-                    type="button"
-                    onClick={() => setIsLogin(!isLogin)}
-                    className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                  >
-                    Create an account
-                  </button>
-                </>
-              ) : (
-                <>
-                  Already have an account? <button
-                    type="button"
-                    onClick={() => setIsLogin(!isLogin)}
-                    className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                  >
-                    Sign in
-                  </button>
-                </>
-              )}
-            </p>
-
-            {/* Legal microcopy */}
-            <p className="mt-4 text-center text-[12px] leading-5 text-neutral-500">
-              By continuing, you agree to our{' '}
-              <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Terms</a>
-              {' '}and{' '}
-              <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Privacy Policy</a>.
-            </p>
+              {/* Legal microcopy - Secondary information */}
+              <p className="text-center text-[11px] leading-4 text-neutral-500 opacity-70">
+                By continuing, you agree to our{' '}
+                <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Terms</a>
+                {' '}and{' '}
+                <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Privacy Policy</a>.
+              </p>
+            </div>
           </section>
         </div>
       </main>
