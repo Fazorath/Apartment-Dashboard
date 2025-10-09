@@ -65,7 +65,8 @@ router.put('/:id', async (req, res) => {
       pinned,
       active,
       lastCompleted,
-      lastCompletedBy
+      lastCompletedBy,
+      previousLastDone
     } = req.body
 
     // Build update object with only provided fields
@@ -82,6 +83,7 @@ router.put('/:id', async (req, res) => {
     if (active !== undefined) updateData.active = active !== false
     if (lastCompleted !== undefined) updateData.lastCompleted = lastCompleted ? new Date(lastCompleted) : null
     if (lastCompletedBy !== undefined) updateData.lastCompletedBy = lastCompletedBy
+    if (previousLastDone !== undefined) updateData.previousLastDone = previousLastDone ? new Date(previousLastDone) : null
 
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
@@ -125,9 +127,16 @@ router.post('/:id/done', async (req, res) => {
     const { completedBy } = req.body
     const today = new Date()
     
+    // First get the current task to store the previous lastDone
+    const currentTask = await Task.findOne({ _id: req.params.id, user: req.user._id })
+    if (!currentTask) {
+      return res.status(404).json({ error: 'Task not found' })
+    }
+    
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       {
+        previousLastDone: currentTask.lastDone, // Store the previous lastDone
         lastDone: today,
         lastCompleted: today,
         lastCompletedBy: completedBy || req.user.username,
@@ -135,10 +144,6 @@ router.post('/:id/done', async (req, res) => {
       },
       { new: true }
     )
-
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found' })
-    }
 
     res.json(task)
   } catch (error) {

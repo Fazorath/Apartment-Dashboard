@@ -81,15 +81,22 @@ export default function Dashboard() {
       let updatedTask
       
       if (markAsComplete) {
-        // Mark as done
+        // Mark as done - backend will store the previous lastDone automatically
         updatedTask = await markTaskDone(taskId)
       } else {
-        // Unmark - only update the completion-related fields
+        // Unmark - restore the previous lastDone date
+        const currentTask = tasks.find(task => task._id === taskId)
+        if (!currentTask) return
+        
+        // Restore to the previous lastDone date
+        const previousLastDone = currentTask.previousLastDone
+        
         updatedTask = await updateTask({ 
           id: taskId, 
-          lastDone: null,
+          lastDone: previousLastDone,
           lastCompleted: null,
-          lastCompletedBy: null
+          lastCompletedBy: null,
+          previousLastDone: null
         })
       }
       

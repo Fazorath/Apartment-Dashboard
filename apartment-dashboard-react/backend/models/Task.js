@@ -42,6 +42,9 @@ const taskSchema = new mongoose.Schema({
     trim: true,
     maxlength: 50
   },
+  previousLastDone: {
+    type: Date
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
