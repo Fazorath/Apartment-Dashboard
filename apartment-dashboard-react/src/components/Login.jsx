@@ -51,78 +51,102 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0C] text-[#EDEEF2] antialiased relative">
-      {/* Vignette background */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_35%_at_50%_35%,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0)_60%)]"></div>
+    <div className="min-h-screen text-[#EDEEF2] antialiased relative overflow-hidden">
+      {/* Dynamic Background - Warm Glow Animation */}
+      <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-orange-800/15 to-blue-900/25 animate-gradient-shift"></div>
       
-      {/* Optional grain texture */}
-      <div 
-        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-soft-light"
-        style={{
-          backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'><rect width='4' height='4' fill='%23000'/><circle cx='0.5' cy='0.5' r='0.5' fill='%23fff' opacity='0.3'/></svg>")`
-        }}
-      ></div>
+      {/* Abstract Pattern Overlay */}
+      <div className="absolute inset-0 opacity-[0.03]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,255,255,0.1)_0%,transparent_50%)] animate-pulse-slow"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.08)_0%,transparent_50%)] animate-pulse-slower"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_40%,rgba(255,255,255,0.05)_0%,transparent_50%)] animate-pulse-slowest"></div>
+      </div>
+      
+      {/* Subtle Geometric Patterns */}
+      <div className="absolute inset-0 opacity-[0.02]">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 border border-white/10 rounded-full animate-float"></div>
+        <div className="absolute top-3/4 right-1/4 w-32 h-32 border border-white/8 rounded-full animate-float-delayed"></div>
+        <div className="absolute bottom-1/4 left-1/3 w-48 h-48 border border-white/6 rounded-full animate-float-slow"></div>
+      </div>
 
       {/* Main content */}
       <main className="relative z-10 flex min-h-screen items-center justify-center p-6 md:translate-y-[-6vh]">
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[420px] md:translate-x-[-8%]">
           {/* Brand */}
-          <div className="mb-3 flex items-center gap-2 text-sm text-neutral-300">
-            <User className="h-4 w-4 opacity-90" />
-            <span>Apartment Dashboard</span>
+          <div className="mb-6 flex items-center justify-center gap-3 text-sm text-neutral-300">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                <User className="h-3 w-3 text-white" />
+              </div>
+              <span className="font-medium">Roommate Hub</span>
+            </div>
           </div>
 
-          {/* Card */}
-          <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 sm:p-9 md:p-10 shadow-[0_10px_30px_rgba(0,0,0,.6),inset_0_1px_0_rgba(255,255,255,.05)]">
-            <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1]">
-              {isLogin ? 'Sign in' : 'Create account'}
+          {/* Glassmorphism Card */}
+          <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-8 sm:p-9 md:p-10 
+                          shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.1)]
+                          before:absolute before:inset-0 before:rounded-3xl before:p-[1px] 
+                          before:bg-gradient-to-br before:from-white/20 before:to-white/5 
+                          before:-z-10 before:opacity-50">
+            <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
+              {isLogin ? 'Welcome to Roommate Hub' : 'Create Your Account'}
             </h1>
-            <p className="mt-1 text-[13.5px] text-neutral-400 leading-[1.45]">
-              {isLogin ? 'Welcome back to your organized home.' : 'Join your roommates and start organizing.'}
+            <p className="mt-2 text-[14px] text-neutral-400 leading-[1.45] text-center">
+              {isLogin ? "Let's keep your chores in check." : 'Organize tasks, live better together.'}
             </p>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-              {/* Username */}
-              <label className="block text-sm font-medium text-neutral-300">Username</label>
+            <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+              {/* Username - Floating Label */}
               <div className="relative">
                 <input
                   type="text"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  placeholder="Enter your username"
+                  placeholder=" "
                   autoComplete="username"
-                  className="w-full h-12 rounded-xl bg-white/5 border border-white/10 px-4 outline-none
-                           placeholder:text-neutral-600 text-[15px] transition-all duration-120 ease-out
-                           focus:border-white/20 focus:bg-white/10 focus:ring-4 focus:ring-sky-400/20"
+                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 px-4 pt-6 pb-2 outline-none
+                           text-[15px] text-white transition-all duration-200 ease-out
+                           focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
+                           placeholder-shown:pt-4"
                   required
                 />
+                <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                                peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
+                                peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500">
+                  Username
+                </label>
               </div>
 
-              {/* Password */}
-              <label className="block text-sm font-medium text-neutral-300">Password</label>
+              {/* Password - Floating Label */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder=" "
                   autoComplete="current-password"
-                  className="w-full h-12 rounded-xl bg-white/5 border border-white/10 px-4 pr-12 outline-none
-                           placeholder:text-neutral-600 text-[15px] transition-all duration-120 ease-out
-                           focus:border-white/20 focus:bg-white/10 focus:ring-4 focus:ring-sky-400/20"
+                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 px-4 pt-6 pb-2 pr-12 outline-none
+                           text-[15px] text-white transition-all duration-200 ease-out
+                           focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
+                           placeholder-shown:pt-4"
                   required
                 />
+                <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
+                                peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
+                                peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500">
+                  Password
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-2 my-auto h-9 w-9 rounded-lg text-neutral-400 hover:text-neutral-200
-                           hover:bg-white/5 focus:outline-none focus:ring-4 focus:ring-sky-400/20 transition-all duration-160 ease-out"
+                  className="absolute inset-y-0 right-3 my-auto h-8 w-8 rounded-lg text-neutral-400 hover:text-emerald-400
+                           hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 ease-out"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
 
@@ -137,34 +161,37 @@ const Login = () => {
               )}
 
               {/* Remember me & Forgot password */}
-              <div className="flex items-center justify-between pt-1 text-sm">
+              <div className="flex items-center justify-between pt-2 text-sm">
                 <label className="inline-flex items-center gap-2">
                   <input 
                     type="checkbox" 
-                    className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-sky-400/20" 
+                    className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-emerald-400/20" 
                   />
                   <span className="text-neutral-400">Remember me</span>
                 </label>
-                <a href="#" className="text-neutral-300 hover:text-white underline underline-offset-4 transition-colors duration-160 pr-4">
+                <a href="#" className="text-neutral-300 hover:text-emerald-400 underline underline-offset-4 transition-colors duration-200 pr-4">
                   Forgot password?
                 </a>
               </div>
 
-              {/* CTA Button */}
+              {/* Enhanced CTA Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-4 w-full h-12 rounded-full bg-white text-black font-semibold tracking-tight
-                         shadow hover:bg-neutral-100 active:bg-neutral-200 active:transform active:translate-y-[1px]
-                         focus:outline-none focus:ring-4 focus:ring-sky-400/20
-                         disabled:opacity-60 disabled:cursor-not-allowed relative
-                         transition-all duration-160 ease-out"
+                className="mt-6 w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold tracking-tight
+                         shadow-lg hover:shadow-xl hover:from-emerald-400 hover:to-teal-400 
+                         active:transform active:scale-[0.98] active:translate-y-[1px]
+                         focus:outline-none focus:ring-4 focus:ring-emerald-400/30
+                         disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none
+                         relative overflow-hidden transition-all duration-200 ease-out
+                         before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/0 before:via-white/10 before:to-white/0
+                         before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700"
               >
-                <span className={loading ? "translate-x-[-6px]" : ""}>
+                <span className={`relative z-10 ${loading ? "translate-x-[-6px]" : ""}`}>
                   {isLogin ? 'Sign in' : 'Create account'}
                 </span>
                 {loading && (
-                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin z-10" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="9" stroke="currentColor" opacity=".25" />
                     <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" />
                   </svg>
@@ -182,7 +209,7 @@ const Login = () => {
                   New here? <button
                     type="button"
                     onClick={() => setIsLogin(!isLogin)}
-                    className="text-neutral-200 hover:text-white underline underline-offset-4 transition-colors duration-160"
+                    className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
                   >
                     Create an account
                   </button>
@@ -192,7 +219,7 @@ const Login = () => {
                   Already have an account? <button
                     type="button"
                     onClick={() => setIsLogin(!isLogin)}
-                    className="text-neutral-200 hover:text-white underline underline-offset-4 transition-colors duration-160"
+                    className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
                   >
                     Sign in
                   </button>
@@ -201,11 +228,11 @@ const Login = () => {
             </p>
 
             {/* Legal microcopy */}
-            <p className="mt-3 text-center text-[12px] leading-5 text-neutral-500">
+            <p className="mt-4 text-center text-[12px] leading-5 text-neutral-500">
               By continuing, you agree to our{' '}
-              <a href="#" className="underline hover:text-neutral-300 transition-colors duration-160">Terms</a>
+              <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Terms</a>
               {' '}and{' '}
-              <a href="#" className="underline hover:text-neutral-300 transition-colors duration-160">Privacy Policy</a>.
+              <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Privacy Policy</a>.
             </p>
           </section>
         </div>

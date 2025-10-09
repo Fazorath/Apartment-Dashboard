@@ -127,3 +127,62 @@ input:-webkit-autofill:focus {
   0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
   50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.2; }
 }
+
+/* Dynamic Background Animations */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.08; }
+}
+
+@keyframes pulse-slower {
+  0%, 100% { opacity: 0.02; }
+  50% { opacity: 0.06; }
+}
+
+@keyframes pulse-slowest {
+  0%, 100% { opacity: 0.01; }
+  50% { opacity: 0.04; }
+}
+
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(90deg); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(45deg); }
+}
+
+/* Animation Classes */
+.animate-gradient-shift {
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
+.animate-pulse-slower {
+  animation: pulse-slower 12s ease-in-out infinite;
+}
+
+.animate-pulse-slowest {
+  animation: pulse-slowest 16s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+  animation-delay: 4s;
+}
