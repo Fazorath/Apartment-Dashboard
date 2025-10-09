@@ -83,9 +83,11 @@ const Login = () => {
           </div>
 
           {/* Glassmorphism Card */}
-          <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-12 sm:p-16 md:p-20 
-                          shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]
-                          border border-white/10">
+          <section 
+            className="login-card relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl 
+                       shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]
+                       border border-white/10"
+          >
             {/* Main Content Container with Consistent Vertical Rhythm */}
             <div className="flex flex-col gap-5">
               <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
