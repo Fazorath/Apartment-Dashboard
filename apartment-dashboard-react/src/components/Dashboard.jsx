@@ -322,11 +322,11 @@ export default function Dashboard() {
                 Recurring chores with last‑done dates & due status
               </p>
             </div>
-          </div>
+        </div>
 
           <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
             {/* Mobile: Only show Add Task button */}
-            <button
+          <button
               onClick={() => handleOpenModal()}
               className="lg:hidden inline-flex items-center gap-1 rounded-lg bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-2 py-1.5 text-xs hover:bg-indigo-500/25"
             >
@@ -344,10 +344,10 @@ export default function Dashboard() {
             <div className="lg:hidden flex items-center gap-1">
               <button onClick={() => setShowSettings(true)} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-xs border border-white/10 hover:bg-white/[0.08] transition">
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5M19.43 12.97c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/></svg>
-              </button>
+          </button>
               <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-lg bg-rose-500/15 text-rose-300 px-2 py-1.5 text-xs border border-rose-500/30 hover:bg-rose-500/20 transition">
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-              </button>
+          </button>
             </div>
           </div>
         </div>
@@ -368,7 +368,7 @@ export default function Dashboard() {
                 <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 24 24" className="h-3 w-3 lg:h-4 lg:w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
                 </div>
-              </div>
+          </div>
               <div className="flex items-end justify-between">
                 <span className="text-xl lg:text-3xl font-semibold tracking-tight">{s.value}</span>
                 {s.change !== 0 && (
@@ -380,8 +380,8 @@ export default function Dashboard() {
                     {s.change > 0 ? '+' : ''}{s.change}
                   </span>
                 )}
-              </div>
-            </div>
+          </div>
+          </div>
           ))}
         </section>
 
@@ -404,7 +404,7 @@ export default function Dashboard() {
           </div>
           <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-none sm:w-80">
-              <input
+            <input
                 className="w-full sm:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
                 placeholder="Search tasks..." 
                 value={searchQuery}
@@ -412,6 +412,13 @@ export default function Dashboard() {
               />
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
             </div>
+            <button
+              onClick={() => handleOpenModal()}
+              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
+              Add Task
+            </button>
           </div>
         </section>
 
@@ -459,19 +466,19 @@ export default function Dashboard() {
                 {getUpcomingTasks().length === 0 ? (
                   <div className="col-span-full text-center text-zinc-400 py-6 lg:py-8">
                     No upcoming tasks this week! 🎉
-                  </div>
-                ) : (
+            </div>
+          ) : (
                   getUpcomingTasks().map((task) => (
-                    <TaskCard
-                      key={task._id}
-                      task={task}
+              <TaskCard
+                key={task._id}
+                task={task}
                       onComplete={handleTaskCompletion}
                       onEdit={handleOpenModal}
                       showDetails={false}
                       variant="upcoming"
-                    />
-                  ))
-                )}
+              />
+            ))
+          )}
               </div>
             </div>
           </div>
