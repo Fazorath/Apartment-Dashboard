@@ -505,20 +505,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Streaks */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <h3 className="font-semibold">Streaks</h3>
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                {[{k:'Daily',v:'5 days'},{k:'Weekly',v:'8 weeks'}].map((s,i)=>(
-                  <div key={i} className="rounded-xl border border-white/10 bg-[#111217] p-4">
-                    <p className="text-xs text-zinc-400">{s.k}</p>
-                    <p className="mt-1 text-lg font-semibold">{s.v}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-xs text-zinc-400">Tip: ⌘/Ctrl + D marks the first task done.</p>
-            </div>
-
             {/* Lists */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <div className="flex items-center justify-between">
