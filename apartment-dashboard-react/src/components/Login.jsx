@@ -71,7 +71,7 @@ const Login = () => {
 
       {/* Main content */}
       <main className="relative z-10 flex min-h-screen items-center justify-center p-6 md:translate-y-[-6vh]">
-        <div className="w-full max-w-[420px] md:translate-x-[-8%]">
+        <div className="w-full max-w-[420px] mx-auto">
 
           {/* Glassmorphism Card */}
           <section 
