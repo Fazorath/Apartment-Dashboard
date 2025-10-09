@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getTasks, createTask, updateTask, markTaskDone } from '../services/api'
 import TaskModal from './TaskModal'
 import SettingsModal from './SettingsModal'
+import TaskCard from './TaskCard'
 
 export default function Dashboard() {
   const { logout, user } = useAuth()
@@ -230,34 +231,6 @@ export default function Dashboard() {
     })
   }
 
-  // Custom checkbox component
-  const TaskCheckbox = ({ task, onComplete }) => {
-    // Check if task is currently marked as complete (has lastCompleted date)
-    const isCurrentlyCompleted = task.lastCompleted && 
-      Math.floor((new Date() - new Date(task.lastCompleted)) / (1000 * 60 * 60 * 24)) <= 1
-
-    return (
-      <button
-        onClick={() => onComplete(task._id, !isCurrentlyCompleted)}
-        className={`mt-1.5 h-5 w-5 rounded-md border-2 transition-all duration-200 hover:scale-110 ${
-          isCurrentlyCompleted
-            ? 'bg-emerald-500 border-emerald-500 text-white'
-            : 'border-white/30 bg-white/5 hover:border-emerald-400/50 hover:bg-emerald-500/10'
-        }`}
-      >
-        {isCurrentlyCompleted && (
-          <svg 
-            viewBox="0 0 24 24" 
-            className="h-3 w-3 mx-auto" 
-            fill="currentColor"
-          >
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-          </svg>
-        )}
-      </button>
-    )
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200 flex items-center justify-center">
@@ -398,47 +371,16 @@ export default function Dashboard() {
                     {searchQuery ? 'No tasks match your search' : `No ${activeFilter.toLowerCase()} tasks`}
                   </li>
                 ) : (
-                  getFilteredTasks().map((task, i) => {
-                    const status = getTaskStatus(task)
-                    const daysSince = task.lastDone ? Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) : null
-                    
-                    return (
-                      <li key={task._id} className="px-5 py-4 flex items-start gap-4 hover:bg-white/[0.04]">
-                        <TaskCheckbox task={task} onComplete={handleTaskCompletion} />
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-medium text-zinc-100">{task.name}</p>
-                            {task.assignedTo && (
-                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-400/15 border border-indigo-400/30 text-indigo-200">
-                                {task.assignedTo}
-                              </span>
-                            )}
-                            <span className={`text-[11px] px-2 py-0.5 rounded-md ${
-                              status === 'overdue' 
-                                ? 'bg-rose-400/10 border border-rose-400/30 text-rose-200'
-                                : status === 'soon'
-                                ? 'bg-emerald-400/10 border border-emerald-400/30 text-emerald-200'
-                                : 'bg-blue-400/10 border border-blue-400/30 text-blue-200'
-                            }`}>
-                              {status === 'overdue' ? 'Overdue' : status === 'soon' ? 'Due Soon' : 'OK'}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-zinc-400">
-                            {daysSince !== null 
-                              ? `Last done ${daysSince}d ago · repeats every ${task.frequencyDays} days`
-                              : `Never done · repeats every ${task.frequencyDays} days`
-                            }
-                          </p>
-                        </div>
-                        <button 
-                          onClick={() => handleOpenModal(task)}
-                          className="self-center text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]"
-                        >
-                          Details
-                        </button>
-                      </li>
-                    )
-                  })
+                  getFilteredTasks().map((task) => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      onComplete={handleTaskCompletion}
+                      onEdit={handleOpenModal}
+                      showDetails={true}
+                      variant="default"
+                    />
+                  ))
                 )}
               </ul>
             </div>
@@ -453,30 +395,18 @@ export default function Dashboard() {
                 {getUpcomingTasks().length === 0 ? (
                   <div className="col-span-full text-center text-zinc-400 py-8">
                     No upcoming tasks this week! 🎉
-            </div>
-          ) : (
-                  getUpcomingTasks().map((task, i) => {
-                    const today = new Date()
-                    const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
-                    const daysUntilDue = task.frequencyDays - daysSince
-                    const dueDate = new Date(today.getTime() + daysUntilDue * 24 * 60 * 60 * 1000)
-                    
-                    return (
-                      <div key={task._id} className="rounded-xl border border-white/10 bg-[#111217] p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-zinc-400">
-                            {dueDate.toLocaleDateString('en-US', { weekday: 'short' })} · {daysUntilDue}d
-                          </div>
-                          {task.assignedTo && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10">
-                              {task.assignedTo}
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-2 font-medium">{task.name}</p>
-                      </div>
-                    )
-                  })
+                  </div>
+                ) : (
+                  getUpcomingTasks().map((task) => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      onComplete={handleTaskCompletion}
+                      onEdit={handleOpenModal}
+                      showDetails={false}
+                      variant="upcoming"
+                    />
+                  ))
                 )}
               </div>
             </div>
