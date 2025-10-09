@@ -111,10 +111,10 @@ const Login = () => {
                                 pointer-events-none select-none">
                   Username
                 </label>
+                {/* Right-side username key icon (centered in capsule) */}
                 <div
                   aria-hidden="true"
                   className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-neutral-400
-                             bg-white/0 hover:bg-white/5 transition-all duration-200 ease-out
                              flex items-center justify-center leading-none p-0"
                 >
                   <KeyRound className="h-4 w-4" />
