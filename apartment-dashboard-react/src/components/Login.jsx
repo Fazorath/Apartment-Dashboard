@@ -84,10 +84,8 @@ const Login = () => {
 
           {/* Glassmorphism Card */}
           <section className="relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl p-12 sm:p-16 md:p-20 
-                          shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.1)]
-                          before:absolute before:inset-0 before:rounded-3xl before:p-[1px] 
-                          before:bg-gradient-to-br before:from-white/20 before:to-white/5 
-                          before:-z-10 before:opacity-50">
+                          shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]
+                          border border-white/10">
             {/* Main Content Container with Consistent Vertical Rhythm */}
             <div className="flex flex-col gap-5">
               <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
