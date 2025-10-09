@@ -14,7 +14,13 @@ export default function Dashboard() {
     overdue: 0,
     soon: 0,
     total: 0,
-    completed: 0
+    completed: 0,
+    weeklyChanges: {
+      overdue: 0,
+      soon: 0,
+      active: 0,
+      completed: 0
+    }
   })
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
@@ -120,10 +126,18 @@ export default function Dashboard() {
 
   const calculateStats = (tasksData) => {
     const today = new Date()
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    
     let overdue = 0
     let soon = 0
     let completed = 0
     let active = 0
+    
+    // Weekly change tracking
+    let overdueLastWeek = 0
+    let soonLastWeek = 0
+    let completedThisWeek = 0
+    let activeLastWeek = 0
     
     tasksData.forEach(task => {
       // Count completed tasks based on current completion state (lastCompleted)
@@ -132,18 +146,29 @@ export default function Dashboard() {
         if (daysSinceCompleted <= 30) {
           completed++
         }
+        // Count tasks completed this week
+        if (daysSinceCompleted <= 7) {
+          completedThisWeek++
+        }
       }
       
       // Calculate due status based on historical completion (lastDone)
       if (!task.lastDone) {
         overdue++
         active++
+        overdueLastWeek++
+        activeLastWeek++
         return
       }
       
       const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
       const daysUntilDue = task.frequencyDays - daysSince
       
+      // Calculate what the status was one week ago
+      const daysSinceLastWeek = Math.floor((oneWeekAgo - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
+      const daysUntilDueLastWeek = task.frequencyDays - daysSinceLastWeek
+      
+      // Current status
       if (daysUntilDue <= 0) {
         overdue++
         active++
@@ -153,13 +178,36 @@ export default function Dashboard() {
       } else {
         active++
       }
+      
+      // Last week status
+      if (daysUntilDueLastWeek <= 0) {
+        overdueLastWeek++
+        activeLastWeek++
+      } else if (daysUntilDueLastWeek <= 2) {
+        soonLastWeek++
+        activeLastWeek++
+      } else {
+        activeLastWeek++
+      }
     })
+    
+    // Calculate weekly changes
+    const overdueChange = overdue - overdueLastWeek
+    const soonChange = soon - soonLastWeek
+    const activeChange = active - activeLastWeek
+    const completedChange = completedThisWeek
     
     setStats({
       overdue,
       soon,
       total: active,
-      completed
+      completed,
+      weeklyChanges: {
+        overdue: overdueChange,
+        soon: soonChange,
+        active: activeChange,
+        completed: completedChange
+      }
     })
   }
 
@@ -294,10 +342,10 @@ export default function Dashboard() {
         {/* Stats Row */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            {label: 'Overdue', value: stats.overdue},
-            {label: 'Due in 2 days', value: stats.soon},
-            {label: 'Total Active', value: stats.total},
-            {label: 'Completed (30d)', value: stats.completed},
+            {label: 'Overdue', value: stats.overdue, change: stats.weeklyChanges.overdue},
+            {label: 'Due in 2 days', value: stats.soon, change: stats.weeklyChanges.soon},
+            {label: 'Total Active', value: stats.total, change: stats.weeklyChanges.active},
+            {label: 'Completed (30d)', value: stats.completed, change: stats.weeklyChanges.completed},
           ].map((s, i) => (
             <div key={i} className="group rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-4 hover:from-white/[0.08] transition">
               <div className="flex items-center justify-between">
@@ -305,12 +353,20 @@ export default function Dashboard() {
                 <div className="h-8 w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center">
                   <svg viewBox="0 0 24 24" className="h-4 w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
                 </div>
-          </div>
+              </div>
               <div className="mt-3 flex items-end justify-between">
                 <span className="text-3xl font-semibold tracking-tight">{s.value}</span>
-                {/* TODO: Add dynamic weekly change indicators */}
-          </div>
-          </div>
+                {s.change !== 0 && (
+                  <span className={`text-xs px-2 py-1 rounded-lg border ${
+                    s.change > 0 
+                      ? 'text-emerald-300/80 bg-emerald-500/10 border-emerald-500/30' 
+                      : 'text-rose-300/80 bg-rose-500/10 border-rose-500/30'
+                  }`}>
+                    {s.change > 0 ? '+' : ''}{s.change} this week
+                  </span>
+                )}
+              </div>
+            </div>
           ))}
         </section>
 
