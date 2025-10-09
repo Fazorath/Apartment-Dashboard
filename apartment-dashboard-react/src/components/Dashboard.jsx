@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getTasks, createTask, updateTask, markTaskDone } from '../services/api'
 import TaskModal from './TaskModal'
+import SettingsModal from './SettingsModal'
 
 export default function Dashboard() {
   const { logout, user } = useAuth()
@@ -16,6 +17,7 @@ export default function Dashboard() {
   })
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [showSettings, setShowSettings] = useState(false)
   const [activeFilter, setActiveFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -305,7 +307,7 @@ export default function Dashboard() {
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 2a1 1 0 0 1 1 1v8h8a1 1 0 1 1 0 2h-8v8a1 1 0 1 1-2 0v-8H2a1 1 0 1 1 0-2h8V3a1 1 0 0 1 1-1z"/></svg>
               New List
           </button>
-            <button className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
+            <button onClick={() => setShowSettings(true)} className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
             <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
           </div>
         </div>
@@ -562,6 +564,13 @@ export default function Dashboard() {
           task={editingTask}
           onClose={handleCloseModal}
           onSave={handleSaveTask}
+        />
+      )}
+      
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>
