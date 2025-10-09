@@ -229,19 +229,20 @@ export default function Dashboard() {
 
   // Custom checkbox component
   const TaskCheckbox = ({ task, onComplete }) => {
-    const isRecentlyCompleted = task.lastDone && 
-      Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) <= 1
+    // Check if task is currently marked as complete (has lastCompleted date)
+    const isCurrentlyCompleted = task.lastCompleted && 
+      Math.floor((new Date() - new Date(task.lastCompleted)) / (1000 * 60 * 60 * 24)) <= 1
 
     return (
       <button
-        onClick={() => onComplete(task._id, !isRecentlyCompleted)}
+        onClick={() => onComplete(task._id, !isCurrentlyCompleted)}
         className={`mt-1.5 h-5 w-5 rounded-md border-2 transition-all duration-200 hover:scale-110 ${
-          isRecentlyCompleted
+          isCurrentlyCompleted
             ? 'bg-emerald-500 border-emerald-500 text-white'
             : 'border-white/30 bg-white/5 hover:border-emerald-400/50 hover:bg-emerald-500/10'
         }`}
       >
-        {isRecentlyCompleted && (
+        {isCurrentlyCompleted && (
           <svg 
             viewBox="0 0 24 24" 
             className="h-3 w-3 mx-auto" 
@@ -332,7 +333,7 @@ export default function Dashboard() {
               <div className="mt-3 flex items-end justify-between">
                 <span className="text-3xl font-semibold tracking-tight">{s.value}</span>
                 {/* TODO: Add dynamic weekly change indicators */}
-              </div>
+          </div>
           </div>
           ))}
         </section>
