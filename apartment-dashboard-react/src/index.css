@@ -16,6 +16,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Autofill on dark backgrounds */
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0B0B0C !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Error helper (works with aria-describedby) */
+.input-error {
+  border-color: rgba(255,92,92,.6) !important;
+  box-shadow: 0 0 0 3px rgba(255,92,92,.18);
+}
+.error-text {
+  margin-top: 6px;
+  color: #FF7A7A;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
 /* Glass helpers (plain CSS, not utilities) */
 .glass {
   background: rgba(255, 255, 255, 0.05);
