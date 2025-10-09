@@ -63,21 +63,29 @@ router.put('/:id', async (req, res) => {
       lastDone,
       notes,
       pinned,
-      active
+      active,
+      lastCompleted,
+      lastCompletedBy
     } = req.body
+
+    // Build update object with only provided fields
+    const updateData = {
+      updatedAt: new Date()
+    }
+
+    if (name !== undefined) updateData.name = name
+    if (assignedTo !== undefined) updateData.assignedTo = assignedTo
+    if (frequencyDays !== undefined) updateData.frequencyDays = parseInt(frequencyDays)
+    if (lastDone !== undefined) updateData.lastDone = lastDone ? new Date(lastDone) : null
+    if (notes !== undefined) updateData.notes = notes
+    if (pinned !== undefined) updateData.pinned = Boolean(pinned)
+    if (active !== undefined) updateData.active = active !== false
+    if (lastCompleted !== undefined) updateData.lastCompleted = lastCompleted ? new Date(lastCompleted) : null
+    if (lastCompletedBy !== undefined) updateData.lastCompletedBy = lastCompletedBy
 
     const task = await Task.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
-      {
-        name,
-        assignedTo,
-        frequencyDays: parseInt(frequencyDays),
-        lastDone: lastDone ? new Date(lastDone) : null,
-        notes,
-        pinned: Boolean(pinned),
-        active: active !== false,
-        updatedAt: new Date()
-      },
+      updateData,
       { new: true }
     )
 

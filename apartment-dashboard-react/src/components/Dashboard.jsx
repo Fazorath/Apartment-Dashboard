@@ -76,9 +76,23 @@ export default function Dashboard() {
     }
   }
 
-  const handleTaskCompletion = async (taskId) => {
+  const handleTaskCompletion = async (taskId, markAsComplete = true) => {
     try {
-      const updatedTask = await markTaskDone(taskId)
+      let updatedTask
+      
+      if (markAsComplete) {
+        // Mark as done
+        updatedTask = await markTaskDone(taskId)
+      } else {
+        // Unmark - only update the completion-related fields
+        updatedTask = await updateTask({ 
+          id: taskId, 
+          lastDone: null,
+          lastCompleted: null,
+          lastCompletedBy: null
+        })
+      }
+      
       setTasks(prev => prev.map(task => 
         task._id === taskId ? updatedTask : task
       ))
@@ -89,7 +103,7 @@ export default function Dashboard() {
       )
       calculateStats(updatedTasks)
     } catch (error) {
-      console.error('Failed to mark task as done:', error)
+      console.error('Failed to update task completion:', error)
       // You could add a toast notification here
     }
   }
@@ -99,10 +113,12 @@ export default function Dashboard() {
     let overdue = 0
     let soon = 0
     let completed = 0
+    let active = 0
     
     tasksData.forEach(task => {
       if (!task.lastDone) {
         overdue++
+        active++
         return
       }
       
@@ -111,8 +127,12 @@ export default function Dashboard() {
       
       if (daysUntilDue <= 0) {
         overdue++
+        active++
       } else if (daysUntilDue <= 2) {
         soon++
+        active++
+      } else {
+        active++
       }
       
       // Count completed tasks (done within last 30 days)
@@ -125,7 +145,7 @@ export default function Dashboard() {
     setStats({
       overdue,
       soon,
-      total: tasksData.length,
+      total: active,
       completed
     })
   }
@@ -143,8 +163,6 @@ export default function Dashboard() {
             return status === 'overdue'
           case 'Soon':
             return status === 'soon'
-          case 'OK':
-            return status === 'ok'
           case 'Completed':
             return task.lastDone && Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) <= 1
           default:
@@ -207,7 +225,7 @@ export default function Dashboard() {
 
     return (
       <button
-        onClick={() => onComplete(task._id)}
+        onClick={() => onComplete(task._id, !isRecentlyCompleted)}
         className={`mt-1.5 h-5 w-5 rounded-md border-2 transition-all duration-200 hover:scale-110 ${
           isRecentlyCompleted
             ? 'bg-emerald-500 border-emerald-500 text-white'
@@ -244,8 +262,8 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="text-rose-400 mb-4">⚠️ Error loading dashboard</div>
           <p className="text-zinc-400 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition"
           >
             Retry
@@ -264,22 +282,22 @@ export default function Dashboard() {
             <div className="h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-5 w-5 text-emerald-400" fill="currentColor"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.258.764a1 1 0 0 1 .554 1.705l-3.8 3.705.897 5.225a1 1 0 0 1-1.451 1.054L12 17.77l-4.684 2.2a1 1 0 0 1-1.451-1.055l.897-5.224-3.8-3.705a1 1 0 0 1 .554-1.705l5.258-.764L11.106 2.553A1 1 0 0 1 12 2z"/></svg>
             </div>
-            <div>
+        <div>
               <h1 className="text-2xl font-semibold tracking-tight">412 Dashboard</h1>
               <p className="text-sm text-zinc-400">
                 Recurring chores with last‑done dates & due status
               </p>
             </div>
-          </div>
+        </div>
 
           <div className="flex items-center gap-3">
-            <button 
+          <button
               onClick={() => handleOpenModal()}
               className="hidden md:flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition"
-            >
+          >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 2a1 1 0 0 1 1 1v8h8a1 1 0 1 1 0 2h-8v8a1 1 0 1 1-2 0v-8H2a1 1 0 1 1 0-2h8V3a1 1 0 0 1 1-1z"/></svg>
               New List
-            </button>
+          </button>
             <button className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
             <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
           </div>
@@ -301,20 +319,20 @@ export default function Dashboard() {
                 <div className="h-8 w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center">
                   <svg viewBox="0 0 24 24" className="h-4 w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
                 </div>
-              </div>
+          </div>
               <div className="mt-3 flex items-end justify-between">
                 <span className="text-3xl font-semibold tracking-tight">{s.value}</span>
-                <span className="text-xs text-emerald-300/80 bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-lg">+2 this week</span>
+                {/* TODO: Add dynamic weekly change indicators */}
               </div>
-            </div>
+          </div>
           ))}
         </section>
 
         {/* Toolbar */}
         <section className="flex flex-col md:flex-row md:items-center gap-3">
           <div className="flex overflow-x-auto gap-2">
-            {['All','Overdue','Soon','OK','Completed'].map((filter, i)=> (
-              <button 
+            {['All','Overdue','Soon','Completed'].map((filter, i)=> (
+              <button
                 key={i} 
                 onClick={() => setActiveFilter(filter)}
                 className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
@@ -329,7 +347,7 @@ export default function Dashboard() {
           </div>
           <div className="md:ml-auto flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:flex-none">
-              <input 
+            <input
                 className="w-full md:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
                 placeholder="Search tasks..." 
                 value={searchQuery}
@@ -337,7 +355,7 @@ export default function Dashboard() {
               />
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
             </div>
-            <button 
+            <button
               onClick={() => handleOpenModal()}
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
             >
@@ -422,8 +440,8 @@ export default function Dashboard() {
                 {getUpcomingTasks().length === 0 ? (
                   <div className="col-span-full text-center text-zinc-400 py-8">
                     No upcoming tasks this week! 🎉
-                  </div>
-                ) : (
+            </div>
+          ) : (
                   getUpcomingTasks().map((task, i) => {
                     const today = new Date()
                     const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
@@ -543,7 +561,7 @@ export default function Dashboard() {
 
       <footer className="mx-auto max-w-7xl px-6 py-10 text-center text-xs text-zinc-500">
         Local‑first. Data lives in your browser.
-      </footer>
+        </footer>
 
       {/* Task Modal */}
       {showModal && (
