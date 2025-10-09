@@ -1,9 +1,12 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Prefer relative requests in dev (use Vite proxy). Allow override via VITE_API_URL in prod.
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
-// Configure axios defaults
-axios.defaults.baseURL = API_BASE
+// Configure axios defaults if provided
+if (API_BASE) {
+  axios.defaults.baseURL = API_BASE
+}
 
 // Add request interceptor to include auth token
 axios.interceptors.request.use((config) => {
@@ -38,7 +41,7 @@ export const register = async (username, password) => {
 }
 
 export const logout = async () => {
-  const response = await axios.get('/api/auth/logout')
+  const response = await axios.post('/api/auth/logout')
   return response.data
 }
 

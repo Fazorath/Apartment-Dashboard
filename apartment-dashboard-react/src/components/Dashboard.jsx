@@ -1,4 +1,7 @@
+import { useAuth } from '../contexts/AuthContext'
+
 export default function Dashboard() {
+  const { logout } = useAuth()
   return (
     <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200">
       {/* App Shell */}
@@ -22,7 +25,7 @@ export default function Dashboard() {
               New List
             </button>
             <button className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
-            <button className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
+            <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
           </div>
         </div>
       </header>
