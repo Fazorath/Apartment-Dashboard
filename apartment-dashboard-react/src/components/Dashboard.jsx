@@ -334,15 +334,8 @@ export default function Dashboard() {
               <span className="hidden xs:inline">Add</span>
             </button>
             
-            {/* Desktop: Show all buttons */}
+            {/* Desktop: Show Settings and Logout buttons */}
             <div className="hidden lg:flex items-center gap-3">
-              <button
-                onClick={() => handleOpenModal()}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H2a1 1 0 1 1 0-2h6V3a1 1 0 0 1 1-1z"/></svg>
-                New List
-              </button>
               <button onClick={() => setShowSettings(true)} className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
               <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
             </div>
@@ -419,13 +412,6 @@ export default function Dashboard() {
               />
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
             </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
-              Add Task
-            </button>
           </div>
         </section>
 
@@ -565,10 +551,6 @@ export default function Dashboard() {
           </aside>
         </section>
       </main>
-
-      <footer className="mx-auto max-w-7xl px-4 lg:px-6 py-6 lg:py-10 text-center text-xs text-zinc-500">
-        Local‑first. Data lives in your browser.
-      </footer>
 
       {/* Task Modal */}
       {showModal && (
