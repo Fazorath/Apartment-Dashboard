@@ -124,6 +124,16 @@ class DatabaseManager {
         trim: true,
         maxlength: 500
       },
+      tags: {
+        type: [String],
+        default: [],
+        validate: {
+          validator: function(v) {
+            return Array.isArray(v)
+          },
+          message: 'Tags must be an array'
+        }
+      },
       pinned: {
         type: Boolean,
         default: false
@@ -147,6 +157,11 @@ class DatabaseManager {
         type: Date,
         default: Date.now
       },
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
       updatedAt: {
         type: Date,
         default: Date.now
@@ -156,12 +171,18 @@ class DatabaseManager {
     // Update the updatedAt field before saving
     taskSchema.pre('save', function(next) {
       this.updatedAt = new Date()
+      
+      // Ensure tags is always an array
+      if (!Array.isArray(this.tags)) {
+        this.tags = []
+      }
+      
       next()
     })
 
     // Index for better query performance
-    taskSchema.index({ active: 1 })
-    taskSchema.index({ lastDone: 1 })
+    taskSchema.index({ user: 1, active: 1 })
+    taskSchema.index({ user: 1, lastDone: 1 })
 
     return {
       Task: connection.model('Task', taskSchema)

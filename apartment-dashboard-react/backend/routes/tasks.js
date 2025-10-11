@@ -9,7 +9,13 @@ router.get('/', async (req, res) => {
     const tasks = await Task.find({})
       .sort({ pinned: -1, lastDone: 1, name: 1 })
     
-    res.json(tasks)
+    // Ensure all tasks have tags field (migration for existing tasks)
+    const tasksWithTags = tasks.map(task => ({
+      ...task.toObject(),
+      tags: task.tags || []
+    }))
+    
+    res.json(tasksWithTags)
   } catch (error) {
     console.error('Get tasks error:', error)
     res.status(500).json({ error: 'Failed to fetch tasks' })
@@ -25,6 +31,7 @@ router.post('/', async (req, res) => {
       frequencyDays,
       lastDone,
       notes,
+      tags,
       pinned,
       active
     } = req.body
@@ -35,15 +42,19 @@ router.post('/', async (req, res) => {
     }
 
     const { Task } = req.apartmentModels
-    const task = new Task({
+    const taskData = {
       name,
       assignedTo,
       frequencyDays: parseInt(frequencyDays),
       lastDone: lastDone ? new Date(lastDone) : null,
       notes,
+      tags: Array.isArray(tags) ? tags : [],
       pinned: Boolean(pinned),
-      active: active !== false
-    })
+      active: active !== false,
+      user: req.user._id
+    }
+    
+    const task = new Task(taskData)
 
     await task.save()
     res.status(201).json(task)
@@ -62,6 +73,7 @@ router.put('/:id', async (req, res) => {
       frequencyDays,
       lastDone,
       notes,
+      tags,
       pinned,
       active,
       lastCompleted,
@@ -79,6 +91,7 @@ router.put('/:id', async (req, res) => {
     if (frequencyDays !== undefined) updateData.frequencyDays = parseInt(frequencyDays)
     if (lastDone !== undefined) updateData.lastDone = lastDone ? new Date(lastDone) : null
     if (notes !== undefined) updateData.notes = notes
+    if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : []
     if (pinned !== undefined) updateData.pinned = Boolean(pinned)
     if (active !== undefined) updateData.active = active !== false
     if (lastCompleted !== undefined) updateData.lastCompleted = lastCompleted ? new Date(lastCompleted) : null
