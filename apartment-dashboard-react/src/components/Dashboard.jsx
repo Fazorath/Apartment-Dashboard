@@ -317,7 +317,9 @@ export default function Dashboard() {
               <svg viewBox="0 0 24 24" className="h-4 w-4 lg:h-5 lg:w-5 text-emerald-400" fill="currentColor"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.258.764a1 1 0 0 1 .554 1.705l-3.8 3.705.897 5.225a1 1 0 0 1-1.451 1.054L12 17.77l-4.684 2.2a1 1 0 0 1-1.451-1.055l.897-5.224-3.8-3.705a1 1 0 0 1 .554-1.705l5.258-.764L11.106 2.553A1 1 0 0 1 12 2z"/></svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg lg:text-2xl font-semibold tracking-tight truncate">412 Dashboard</h1>
+              <h1 className="text-lg lg:text-2xl font-semibold tracking-tight truncate">
+                {user?.apartmentName ? `${user.apartmentName} Dashboard` : 'Dashboard'}
+              </h1>
               <p className="text-xs lg:text-sm text-zinc-400 hidden sm:block">
                 Recurring chores with last‑done dates & due status
               </p>
