@@ -1,6 +1,6 @@
 # Apartment Dashboard
 
-Collaborative dashboard for recurring chores and household tasks — React + Node.js + MongoDB.
+A modern, collaborative task management dashboard built with React, Vite, and Node.js. Perfect for roommates to track recurring chores and tasks.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Stack: React](https://img.shields.io/badge/stack-React%20%2B%20Vite-blue)
@@ -28,35 +28,66 @@ This is one of my first fully built apps. The goal is to demonstrate end‑to‑
 Apartment Dashboard helps roommates stay on top of recurring chores with task assignments, due tracking, and simple collaboration — powered by a React frontend, and a Node.js/Express API with MongoDB for persistence and JWT authentication.
 
 ## Features
-- Task creation, assignment, completion, and recurrence
-- Status filters (overdue, due soon, OK), search, and quick stats
-- Modern responsive UI with dark theme
-- Authentication (full‑stack version): register/login with JWT
+- **User Authentication**: Secure login/register system with JWT tokens
+- **Task Management**: Create, edit, delete, and mark tasks as complete
+- **Recurring Tasks**: Set frequency in days with automatic due date tracking
+- **Collaboration**: Assign tasks to specific roommates
+- **Real-time Statistics**: Track overdue, due soon, and total tasks
+- **Advanced Filtering**: Filter by status (all, overdue, due soon, OK)
+- **Search**: Find tasks quickly with real-time search
+- **Modern UI**: Beautiful, responsive design with dark theme
+- **Dynamic Headers**: Dashboard title updates with apartment name
+- **Responsive**: Works perfectly on desktop and mobile
 
 ## Tech stack
-- Frontend: React, Vite, React Router, Tailwind CSS
-- Backend: Node.js, Express, MongoDB (Mongoose), JWT, bcrypt
+### Frontend
+- **React 18** - Modern React with hooks
+- **Vite** - Fast build tool and dev server
+- **React Router** - Client-side routing
+- **Tailwind CSS** - Utility-first CSS framework
+- **Lucide React** - Beautiful icons
+- **Axios** - HTTP client
+
+### Backend
+- **Node.js** - JavaScript runtime
+- **Express.js** - Web framework
+- **MongoDB** - NoSQL database
+- **Mongoose** - MongoDB object modeling
+- **JWT** - JSON Web Tokens for authentication
+- **bcryptjs** - Password hashing
+- **CORS** - Cross-origin resource sharing
 
 ---
 
-## Quick start (full‑stack)
-1) Frontend
-   ```sh
-   cd apartment-dashboard-react
-   npm install
-   npm run dev
-   # app runs at http://localhost:5173
-   ```
+## Quick start
 
-2) Backend
-   ```sh
-   cd apartment-dashboard-react/backend
-   npm install
-   cp env.example .env
-   # edit .env with your values (see Configuration)
-   npm run dev
-   # API runs at http://localhost:3000
-   ```
+### Prerequisites
+- Node.js 18+ 
+- MongoDB Atlas account (or local MongoDB)
+
+### 1. Clone and Setup
+```bash
+git clone <repository-url>
+cd Apartment-Dashboard
+```
+
+### 2. Frontend Setup
+```bash
+cd apartment-dashboard-react
+npm install
+npm run dev
+# app runs at http://localhost:5173
+```
+
+### 3. Backend Setup
+```bash
+cd apartment-dashboard-react/backend
+npm install
+cp env.example .env
+# edit .env with your values (see Configuration)
+npm run dev
+# API runs at http://localhost:3000
+```
 
 ---
 
@@ -66,7 +97,7 @@ Apartment-Dashboard/
   apartment-dashboard-react/
     src/                   # React app (components, contexts, services)
     backend/               # Express API (auth, tasks, users)
-    README.md              # React/Backend specific docs
+    README.md              # Detailed implementation docs
 ```
 
 Key entry points:
@@ -75,7 +106,7 @@ Key entry points:
 
 ---
 
-## Configuration (full‑stack)
+## Configuration
 Create `apartment-dashboard-react/backend/.env` from `env.example`:
 
 ```env
@@ -93,27 +124,42 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 ```
 
-Frontend scripts (run inside `apartment-dashboard-react`):
+### Available Scripts
+
+**Frontend** (run inside `apartment-dashboard-react`):
 - `npm run dev` – start Vite dev server
 - `npm run build` – production build
 - `npm run preview` – preview production build
 
-Backend scripts (run inside `apartment-dashboard-react/backend`):
+**Backend** (run inside `apartment-dashboard-react/backend`):
 - `npm run dev` – start API with nodemon
 - `npm start` – start API with Node
 
 ---
 
 ## Roadmap / status
-- Forgot password flow (not implemented yet)
+
+### ✅ Completed Features
+- User authentication with JWT
+- Task CRUD operations
+- Recurring task management
+- Real-time statistics
+- Dynamic apartment-specific headers
+- Responsive dark theme UI
+- Multi-apartment support
+
+### 🚧 In Progress / Planned
+- **Forgot password flow** (not implemented yet)
   - Password reset emails and tokens
   - Backend endpoints for request/reset
   - Frontend reset screens
-- Social sign‑in (Google, Apple)
-- Email verification and stronger password requirements
-- Optional 2FA
+- **Social sign‑in** (Google, Apple)
+- **Email verification** and stronger password requirements
+- **Optional 2FA**
 
-See `apartment-dashboard-react/README.md` for a detailed implementation checklist.
+### 🔧 Known Issues
+- "Forgot Password?" link is currently non-functional
+- MongoDB driver deprecation warnings (cosmetic only)
 
 ---
 
