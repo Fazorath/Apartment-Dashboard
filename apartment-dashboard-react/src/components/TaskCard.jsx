@@ -59,7 +59,10 @@ const TaskCard = ({
 
     return (
       <button
-        onClick={() => onComplete(task._id, !isCurrentlyCompleted)}
+        onClick={(e) => {
+          e.stopPropagation() // Prevent card click
+          onComplete(task._id, !isCurrentlyCompleted)
+        }}
         className={`mt-1.5 h-5 w-5 rounded-md border-2 transition-all duration-200 hover:scale-110 ${
           isCurrentlyCompleted
             ? 'bg-emerald-500 border-emerald-500 text-white'
@@ -131,9 +134,10 @@ const TaskCard = ({
   // Default variant (main task list)
   return (
     <li 
-      className="px-4 lg:px-5 py-3 lg:py-4 flex items-start gap-3 lg:gap-4 hover:bg-white/[0.04] transition-colors"
+      className="px-4 lg:px-5 py-3 lg:py-4 flex items-start gap-3 lg:gap-4 hover:bg-white/[0.04] transition-colors cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => onEdit(task)}
     >
       <TaskCheckbox task={task} onComplete={onComplete} />
       
@@ -170,16 +174,6 @@ const TaskCard = ({
         )}
       </div>
       
-      {showDetails && (
-        <button 
-          onClick={() => onEdit(task)}
-          className={`self-center text-xs lg:text-sm rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08] transition-colors flex-shrink-0 ${
-            isHovered ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          Details
-        </button>
-      )}
     </li>
   )
 }

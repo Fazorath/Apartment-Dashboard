@@ -4,6 +4,7 @@ import { getTasks, createTask, updateTask, markTaskDone } from '../services/api'
 import TaskModal from './TaskModal'
 import SettingsModal from './SettingsModal'
 import TaskCard from './TaskCard'
+import TaskDetailsMenu from './TaskDetailsMenu'
 
 export default function Dashboard() {
   const { logout, user } = useAuth()
@@ -27,6 +28,8 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [activeFilter, setActiveFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [showTaskDetails, setShowTaskDetails] = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)
 
   // Fetch tasks and stats
   useEffect(() => {
@@ -56,6 +59,29 @@ export default function Dashboard() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingTask(null)
+  }
+
+  // Task details menu handlers
+  const handleOpenTaskDetails = (task) => {
+    setSelectedTask(task)
+    setShowTaskDetails(true)
+  }
+
+  const handleCloseTaskDetails = () => {
+    setShowTaskDetails(false)
+    setSelectedTask(null)
+  }
+
+  const handleTaskUpdated = (updatedTask) => {
+    setTasks(prev => prev.map(task => 
+      task._id === updatedTask._id ? updatedTask : task
+    ))
+    setSelectedTask(updatedTask)
+  }
+
+  const handleTaskDeleted = (taskId) => {
+    setTasks(prev => prev.filter(task => task._id !== taskId))
+    calculateStats(tasks.filter(task => task._id !== taskId))
   }
 
   const handleSaveTask = async (taskData) => {
@@ -364,7 +390,7 @@ export default function Dashboard() {
             {label: 'Active', value: stats.total, change: stats.weeklyChanges.active},
             {label: 'Completed', value: stats.completed, change: stats.weeklyChanges.completed},
           ].map((s, i) => (
-            <div key={i} className="group rounded-xl lg:rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-3 lg:p-4 hover:from-white/[0.08] transition">
+            <div key={s.label} className="group rounded-xl lg:rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-3 lg:p-4 hover:from-white/[0.08] transition">
               <div className="flex items-center justify-between mb-2 lg:mb-3">
                 <p className="text-xs lg:text-sm text-zinc-400 truncate">{s.label}</p>
                 <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center flex-shrink-0">
@@ -392,7 +418,7 @@ export default function Dashboard() {
           <div className="flex overflow-x-auto gap-2 pb-1 sm:pb-0">
             {['All','Overdue','Soon','Completed'].map((filter, i)=> (
               <button
-                key={i} 
+                key={filter} 
                 onClick={() => setActiveFilter(filter)}
                 className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap flex-shrink-0 ${
                   activeFilter === filter 
@@ -449,7 +475,7 @@ export default function Dashboard() {
                       key={task._id}
                       task={task}
                       onComplete={handleTaskCompletion}
-                      onEdit={handleOpenModal}
+                      onEdit={handleOpenTaskDetails}
                       showDetails={true}
                       variant="default"
                     />
@@ -475,7 +501,7 @@ export default function Dashboard() {
                 key={task._id}
                 task={task}
                       onComplete={handleTaskCompletion}
-                      onEdit={handleOpenModal}
+                      onEdit={handleOpenTaskDetails}
                       showDetails={false}
                       variant="upcoming"
               />
@@ -499,7 +525,7 @@ export default function Dashboard() {
                   {k:'Active',v:stats.total},
                   {k:'Overdue',v:stats.overdue}
                 ].map((m,i)=>(
-                  <div key={i} className="rounded-lg lg:rounded-xl border border-white/10 bg-[#111217] p-3 lg:p-4">
+                  <div key={m.k} className="rounded-lg lg:rounded-xl border border-white/10 bg-[#111217] p-3 lg:p-4">
                     <p className="text-xs text-zinc-400">{m.k}</p>
                     <p className="mt-1 text-lg lg:text-2xl font-semibold">{m.v}</p>
                   </div>
@@ -545,7 +571,7 @@ export default function Dashboard() {
                     </li>
                   ) : (
                     Object.entries(taskGroups).map(([name, count], i) => (
-                      <li key={i} className="flex items-center justify-between rounded-lg lg:rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
+                      <li key={name} className="flex items-center justify-between rounded-lg lg:rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
                         <div className="flex items-center gap-2 lg:gap-3">
                           <span className="h-2 w-2 lg:h-2.5 lg:w-2.5 rounded-full bg-emerald-400/70"/>
                           <p className="text-sm">{name}</p>
@@ -564,6 +590,7 @@ export default function Dashboard() {
       {/* Task Modal */}
       {showModal && (
         <TaskModal
+          key={editingTask ? `edit-${editingTask._id}` : 'create'}
           task={editingTask}
           onClose={handleCloseModal}
           onSave={handleSaveTask}
@@ -576,6 +603,16 @@ export default function Dashboard() {
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {/* Task Details Menu */}
+      <TaskDetailsMenu
+        key={selectedTask ? `details-${selectedTask._id}` : 'details'}
+        task={selectedTask}
+        isOpen={showTaskDetails}
+        onClose={handleCloseTaskDetails}
+        onTaskUpdated={handleTaskUpdated}
+        onTaskDeleted={handleTaskDeleted}
+      />
     </div>
   )
 }

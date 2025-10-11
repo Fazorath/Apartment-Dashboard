@@ -13,7 +13,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router>
-          <div className="min-h-screen bg-gray-900 text-white">
+          <div className="min-h-screen bg-[#0b0c10] text-white">
             <AppRoutes />
           </div>
         </Router>

@@ -113,7 +113,7 @@ const AdminDashboard = () => {
   // Show loading if user is not loaded yet or if we're fetching admin data
   if (!user || loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-4" />
           <p className="text-gray-300">
@@ -126,7 +126,7 @@ const AdminDashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
           <p className="text-red-400 mb-4">{error}</p>
@@ -142,7 +142,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-[#0b0c10] text-white">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -247,7 +247,7 @@ const AdminDashboard = () => {
                 </h3>
                 <div className="space-y-3">
                   {stats?.recentUsers?.map((user, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700">
+                    <div key={`recent-user-${user.username}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-700">
                       <div>
                         <p className="font-medium">{user.username}</p>
                         <p className="text-sm text-gray-400">{user.apartmentCode}</p>
@@ -265,7 +265,7 @@ const AdminDashboard = () => {
                 </h3>
                 <div className="space-y-3">
                   {stats?.recentLogins?.map((user, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700">
+                    <div key={`recent-login-${user.username}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-700">
                       <div>
                         <p className="font-medium">{user.username}</p>
                         <p className="text-sm text-gray-400">{user.apartmentCode}</p>

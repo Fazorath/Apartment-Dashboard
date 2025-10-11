@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { X, Calendar, User, FileText, Pin, CheckCircle } from 'lucide-react'
+import React, { useState, useEffect, useLayoutEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { X, User2, CalendarDays, CheckCircle2 } from 'lucide-react'
 
 const TaskModal = ({ task, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -8,9 +9,19 @@ const TaskModal = ({ task, onClose, onSave }) => {
     frequencyDays: 7,
     lastDone: '',
     notes: '',
+    tags: '',
     pinned: false,
     active: true
   })
+
+  // Lock body scroll when modal is open
+  useLayoutEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { 
+      document.body.style.overflow = prev 
+    }
+  }, [])
 
   useEffect(() => {
     if (task) {
@@ -20,6 +31,7 @@ const TaskModal = ({ task, onClose, onSave }) => {
         frequencyDays: task.frequencyDays || 7,
         lastDone: task.lastDone || '',
         notes: task.notes || '',
+        tags: Array.isArray(task.tags) ? task.tags.join(', ') : (task.tags || ''),
         pinned: task.pinned || false,
         active: task.active !== false
       })
@@ -30,6 +42,7 @@ const TaskModal = ({ task, onClose, onSave }) => {
         frequencyDays: 7,
         lastDone: new Date().toISOString().split('T')[0],
         notes: '',
+        tags: '',
         pinned: false,
         active: true
       })
@@ -38,7 +51,18 @@ const TaskModal = ({ task, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSave(formData)
+    
+    // Convert tags string back to array for the API
+    const tagsArray = formData.tags 
+      ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+      : []
+    
+    const dataToSave = {
+      ...formData,
+      tags: tagsArray
+    }
+    
+    onSave(dataToSave)
   }
 
   const handleChange = (e) => {
@@ -50,205 +74,173 @@ const TaskModal = ({ task, onClose, onSave }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="dialog card" style={{
-        background: 'rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(15px)',
-        border: '1px solid rgba(255,255,255,0.15)',
-        borderRadius: '1rem',
-        width: 'min(44rem, 96vw)',
-        padding: 0
-      }}>
-        <div className="dialog-head" style={{padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.12)'}}>
-          <h2 className="dialog-title" style={{fontWeight: '700', color: '#f5f5f5'}}>
-            {task ? 'Edit Task' : 'Add New Task'}
-          </h2>
-        </div>
+    <AnimatePresence>
+      <motion.div
+        key="modal-overlay"
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-40 bg-black/80 supports-[backdrop-filter]:backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-        <form onSubmit={handleSubmit} className="dialog-body" style={{display: 'grid', gap: '.75rem', padding: '1rem'}}>
-          <div className="field" style={{display: 'grid', gap: '.25rem'}}>
-            <label className="label" style={{fontSize: '.9rem', color: '#9ca3af'}}>
-              Task Name *
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="input"
-              placeholder="Enter task name"
-              required
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: '#f5f5f5',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '.75rem',
-                padding: '.5rem .75rem',
-                outline: 'none',
-                width: '100%'
-              }}
-            />
-          </div>
-
-          <div className="field" style={{display: 'grid', gap: '.25rem'}}>
-            <label className="label" style={{fontSize: '.9rem', color: '#9ca3af'}}>
-              Assigned To
-            </label>
-            <input
-              type="text"
-              name="assignedTo"
-              value={formData.assignedTo}
-              onChange={handleChange}
-              className="input"
-              placeholder="Roommate name (optional)"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: '#f5f5f5',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '.75rem',
-                padding: '.5rem .75rem',
-                outline: 'none',
-                width: '100%'
-              }}
-            />
-          </div>
-
-          <div className="field" style={{display: 'grid', gap: '.25rem'}}>
-            <label className="label" style={{fontSize: '.9rem', color: '#9ca3af'}}>
-              Frequency (days) *
-            </label>
-            <input
-              type="number"
-              name="frequencyDays"
-              value={formData.frequencyDays}
-              onChange={handleChange}
-              className="input"
-              min="1"
-              required
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: '#f5f5f5',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '.75rem',
-                padding: '.5rem .75rem',
-                outline: 'none',
-                width: '100%'
-              }}
-            />
-          </div>
-
-          <div className="field" style={{display: 'grid', gap: '.25rem'}}>
-            <label className="label" style={{fontSize: '.9rem', color: '#9ca3af'}}>
-              Last Done
-            </label>
-            <input
-              type="date"
-              name="lastDone"
-              value={formData.lastDone}
-              onChange={handleChange}
-              className="input"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: '#f5f5f5',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '.75rem',
-                padding: '.5rem .75rem',
-                outline: 'none',
-                width: '100%'
-              }}
-            />
-          </div>
-
-          <div className="field" style={{display: 'grid', gap: '.25rem'}}>
-            <label className="label" style={{fontSize: '.9rem', color: '#9ca3af'}}>
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              className="input"
-              rows="3"
-              placeholder="Additional notes (optional)"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: '#f5f5f5',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '.75rem',
-                padding: '.5rem .75rem',
-                outline: 'none',
-                width: '100%',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <div className="toggles" style={{display: 'flex', gap: '1.5rem'}}>
-            <label className="check" style={{display: 'flex', gap: '.5rem', alignItems: 'center', color: '#9ca3af'}}>
-              <input
-                type="checkbox"
-                name="pinned"
-                checked={formData.pinned}
-                onChange={handleChange}
-                style={{
-                  width: '1rem',
-                  height: '1rem',
-                  accentColor: '#4f46e5'
-                }}
-              />
-              Pin to top
-            </label>
-
-            <label className="check" style={{display: 'flex', gap: '.5rem', alignItems: 'center', color: '#9ca3af'}}>
-              <input
-                type="checkbox"
-                name="active"
-                checked={formData.active}
-                onChange={handleChange}
-                style={{
-                  width: '1rem',
-                  height: '1rem',
-                  accentColor: '#4f46e5'
-                }}
-              />
-              Active
-            </label>
-          </div>
-
-          <div className="dialog-foot" style={{padding: '.75rem', display: 'flex', gap: '.5rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.12)'}}>
+      <motion.div
+        key="modal-content"
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.05 }}
+        className="fixed inset-0 z-50 grid place-items-center px-4"
+      >
+        <div className="transform-gpu will-change-[opacity,transform,filter] w-full max-w-[720px] rounded-3xl border border-white/10 bg-gradient-to-b from-zinc-900/80 to-zinc-900/60 supports-[backdrop-filter]:bg-white/5 backdrop-blur-xl shadow-[0_20px_120px_-20px_rgba(0,0,0,0.6)]">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+            <div>
+              <h3 className="text-base font-semibold">{task ? 'Edit Task' : 'Add New Task'}</h3>
+              <p className="text-xs text-white/50">All fields mirror your current modal; just refined visuals.</p>
+            </div>
             <button
-              type="button"
               onClick={onClose}
-              className="btn"
-              style={{
-                padding: '.5rem .75rem',
-                borderRadius: '.75rem',
-                border: '1px solid rgba(255,255,255,0.12)',
-                fontWeight: '600',
-                background: 'rgba(255,255,255,0.06)',
-                color: '#f5f5f5'
-              }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+              aria-label="Close"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn primary"
-              style={{
-                padding: '.5rem .75rem',
-                borderRadius: '.75rem',
-                border: '1px solid rgba(79,70,229,0.4)',
-                fontWeight: '600',
-                background: 'rgba(79,70,229,0.25)',
-                color: '#f5f5f5'
-              }}
-            >
-              {task ? 'Update Task' : 'Create Task'}
+              <X size={16}/>
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+
+          {/* Form body */}
+          <form onSubmit={handleSubmit} className="px-6 py-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Task Name */}
+              <div className="md:col-span-2">
+                <label className="block text-[11px] uppercase tracking-wide text-white/50 mb-1">Task Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Enter task name"
+                  required
+                  className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/10 px-4 text-sm outline-none focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                />
+              </div>
+
+              {/* Assigned To */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wide text-white/50 mb-1">Assigned To</label>
+                <div className="relative">
+                  <User2 size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+                  <input
+                    type="text"
+                    name="assignedTo"
+                    value={formData.assignedTo}
+                    onChange={handleChange}
+                    placeholder="Roommate name (optional)"
+                    className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/10 pl-10 pr-4 text-sm outline-none focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                  />
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wide text-white/50 mb-1">Tags</label>
+                <input
+                  type="text"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleChange}
+                  placeholder="cleaning, kitchen, weekly (comma‑separated)"
+                  className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/10 px-4 text-sm outline-none focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                />
+              </div>
+
+              {/* Frequency */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wide text-white/50 mb-1">Frequency (days) *</label>
+                <input
+                  type="number"
+                  name="frequencyDays"
+                  min={1}
+                  value={formData.frequencyDays}
+                  onChange={handleChange}
+                  required
+                  className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/10 px-4 text-sm outline-none focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                />
+              </div>
+
+              {/* Last Done */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wide text-white/50 mb-1">Last Done</label>
+                <div className="relative">
+                  <CalendarDays size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+                  <input
+                    type="date"
+                    name="lastDone"
+                    value={formData.lastDone}
+                    onChange={handleChange}
+                    className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/10 pl-10 pr-4 text-sm outline-none focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="md:col-span-2">
+                <label className="block text-[11px] uppercase tracking-wide text-white/50 mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
+                  placeholder="Additional notes (optional)"
+                  className="w-full min-h-[120px] rounded-2xl bg-white/[0.06] border border-white/10 px-4 py-3 text-sm outline-none focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
+                />
+              </div>
+
+              {/* Toggles */}
+              <div className="md:col-span-2 flex items-center gap-6 pt-1">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input 
+                    type="checkbox" 
+                    name="pinned"
+                    checked={formData.pinned} 
+                    onChange={handleChange} 
+                    className="h-4 w-4 rounded border-white/20 bg-white/10"
+                  />
+                  <span>Pin to top</span>
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input 
+                    type="checkbox" 
+                    name="active"
+                    checked={formData.active} 
+                    onChange={handleChange} 
+                    className="h-4 w-4 rounded border-white/20 bg-white/10"
+                  />
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={14}/> Active</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-white/10 mt-6">
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-10 rounded-2xl border border-white/10 px-4 text-sm hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="h-10 rounded-2xl border border-emerald-400/30 bg-emerald-400/15 px-4 text-sm hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+              >
+                {task ? 'Update Task' : 'Create Task'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
