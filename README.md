@@ -156,6 +156,9 @@ FRONTEND_URL=http://localhost:5173
 - **Social sign‑in** (Google, Apple)
 - **Email verification** and stronger password requirements
 - **Optional 2FA**
+- **Fix pinned items sorting** - Ensure pinned tasks appear at the top of the task list
+- **Priority system clarification** - Document and implement clear priority logic for upcoming task cards
+- **Lists section enhancement** - Expand functionality and user experience for the Lists section
 
 ### 🔧 Known Issues
 - "Forgot Password?" link is currently non-functional
