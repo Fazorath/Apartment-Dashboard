@@ -1,536 +1,253 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
-import { 
-  Database, 
-  Users, 
-  Building, 
-  Eye, 
-  EyeOff, 
-  RefreshCw, 
-  Copy, 
-  Check,
-  AlertCircle,
-  TrendingUp,
-  Calendar,
-  Shield
-} from 'lucide-react'
+import { Building2, Database, LogOut, RefreshCw, Shield, Users } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import Card from './ui/Card'
+import Button from './ui/Button'
+import Segmented from './ui/Segmented'
+import Avatar from './ui/Avatar'
 
-// Use the same axios configuration as the rest of the app
-// This ensures we use Vite's proxy in development
-const adminAxios = axios.create()
+const TABS = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'homes', label: 'Homes' },
+  { value: 'users', label: 'Users' },
+  { value: 'databases', label: 'Databases' },
+]
 
-// Add auth token interceptor
-adminAxios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+const CONNECTION = {
+  1: { text: 'Connected', className: 'text-accent' },
+  2: { text: 'Connecting', className: 'text-warning' },
+  3: { text: 'Disconnecting', className: 'text-warning' },
+}
+const connection = (status) => CONNECTION[status] || { text: 'Disconnected', className: 'text-danger' }
 
-const AdminDashboard = () => {
+const formatDate = (date) => (date ? new Date(date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never')
+
+function Stat({ icon, label, value }) {
+  const Icon = icon
+  return (
+    <Card className="flex items-center gap-4 p-5">
+      <span className="grid h-10 w-10 place-items-center rounded-ctl bg-surface-2 text-muted"><Icon size={20} /></span>
+      <span>
+        <span className="block text-xs font-medium text-muted">{label}</span>
+        <span className="text-2xl font-semibold tabular-nums">{value}</span>
+      </span>
+    </Card>
+  )
+}
+
+function PeopleList({ title, people, dateKey }) {
+  return (
+    <Card className="p-5">
+      <h2 className="mb-3 text-sm font-semibold">{title}</h2>
+      {people?.length ? (
+        <ul className="grid">
+          {people.map((person, i) => (
+            <li key={`${person.username}-${i}`} className="flex items-center gap-3 py-2.5 [&+li]:border-t [&+li]:border-line">
+              <Avatar name={person.username} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{person.username}</span>
+                <span className="text-xs text-subtle">{person.apartmentCode}</span>
+              </span>
+              <span className="text-xs text-muted tabular-nums">{formatDate(person[dateKey])}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-muted">No activity yet.</p>}
+    </Card>
+  )
+}
+
+export default function AdminDashboard() {
   const { user, logout } = useAuth()
+  const [tab, setTab] = useState('overview')
   const [apartments, setApartments] = useState([])
   const [databaseStatus, setDatabaseStatus] = useState(null)
   const [stats, setStats] = useState(null)
+  const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState('overview')
-  const [selectedApartment, setSelectedApartment] = useState(null)
-  const [showPasswords, setShowPasswords] = useState({})
-  const [copiedItems, setCopiedItems] = useState({})
 
-  useEffect(() => {
-    if (user?.isAdmin) {
-      fetchAdminData()
-    }
-  }, [user?.isAdmin])
-
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
+    setLoading(true)
+    setError('')
     try {
-      setLoading(true)
-      setError('')
-      
       const [apartmentsRes, dbRes, statsRes] = await Promise.all([
-        adminAxios.get('/api/admin/apartments'),
-        adminAxios.get('/api/admin/database-status'),
-        adminAxios.get('/api/admin/stats')
+        axios.get('/api/admin/apartments'),
+        axios.get('/api/admin/database-status'),
+        axios.get('/api/admin/stats'),
       ])
-
       setApartments(apartmentsRes.data.apartments)
       setDatabaseStatus(dbRes.data)
       setStats(statsRes.data.stats)
     } catch (err) {
       console.error('Admin data fetch error:', err)
-      setError(`Failed to load admin data: ${err.response?.data?.error || err.message}`)
+      setError(err.response?.data?.error || err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchApartmentDetails = async (apartmentCode) => {
+  useEffect(() => { fetchAdminData() }, [fetchAdminData])
+
+  const selectHome = async (code) => {
     try {
-      const response = await adminAxios.get(`/api/admin/apartment/${apartmentCode}`)
-      setSelectedApartment(response.data.apartment)
+      const response = await axios.get(`/api/admin/apartment/${code}`)
+      setSelected(response.data.apartment)
     } catch (err) {
       console.error('Apartment details fetch error:', err)
     }
   }
 
-  const togglePasswordVisibility = (userId) => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [userId]: !prev[userId]
-    }))
-  }
-
-  const copyToClipboard = async (text, itemId) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopiedItems(prev => ({ ...prev, [itemId]: true }))
-      setTimeout(() => {
-        setCopiedItems(prev => ({ ...prev, [itemId]: false }))
-      }, 2000)
-    } catch (err) {
-      console.error('Copy failed:', err)
-    }
-  }
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleString()
-  }
-
-  const getConnectionStatus = (status) => {
-    switch (status) {
-      case 1: return { text: 'Connected', color: 'text-green-500' }
-      case 2: return { text: 'Connecting', color: 'text-yellow-500' }
-      case 3: return { text: 'Disconnecting', color: 'text-orange-500' }
-      default: return { text: 'Disconnected', color: 'text-red-500' }
-    }
-  }
-
-  // Show loading if user is not loaded yet or if we're fetching admin data
-  if (!user || loading) {
-    return (
-      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-4" />
-          <p className="text-gray-300">
-            {!user ? 'Loading user...' : 'Loading admin dashboard...'}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
-          <p className="text-red-400 mb-4">{error}</p>
-          <button 
-            onClick={fetchAdminData}
-            className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const allUsers = apartments.flatMap((apt) => (apt.users || []).map((u) => ({ ...u, apartmentCode: u.apartmentCode || apt.code })))
 
   return (
-    <div className="min-h-screen bg-[#0b0c10] text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <Shield className="h-8 w-8 text-emerald-500" />
-              <div>
-                <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                <p className="text-gray-400">System Administration Panel</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-400">Logged in as: {user?.username}</span>
-              <button
-                onClick={logout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Logout
-              </button>
-            </div>
+    <div className="min-h-screen bg-bg text-ink">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-3 px-4 lg:px-8">
+          <div className="grid h-8 w-8 place-items-center rounded-[9px] bg-ink text-bg"><Shield size={18} /></div>
+          <div className="min-w-0">
+            <p className="text-[17px] leading-[22px] font-bold tracking-tight">Admin</p>
+            <p className="text-xs text-subtle">Roommate Dash · signed in as {user?.username}</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" onClick={fetchAdminData} loading={loading} aria-label="Refresh">{loading ? null : <RefreshCw size={16} />}<span className="max-sm:hidden">Refresh</span></Button>
+            <Button variant="secondary" onClick={logout}><LogOut size={16} /> <span className="max-sm:hidden">Sign out</span></Button>
           </div>
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {[
-              { id: 'overview', label: 'Overview', icon: TrendingUp },
-              { id: 'apartments', label: 'Apartments', icon: Building },
-              { id: 'databases', label: 'Databases', icon: Database },
-              { id: 'users', label: 'Users', icon: Users }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-emerald-500 text-emerald-400'
-                    : 'border-transparent text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                <tab.icon className="h-5 w-5" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </nav>
+      <main className="mx-auto grid max-w-[1200px] gap-5 px-4 pt-7 pb-16 lg:px-8">
+        <Segmented options={TABS} value={tab} onChange={setTab} label="Admin sections" className="justify-self-start" />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="flex items-center">
-                  <Building className="h-8 w-8 text-blue-500" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-400">Total Apartments</p>
-                    <p className="text-2xl font-bold">{stats?.totalApartments || 0}</p>
-                  </div>
+        {error ? (
+          <Card className="px-5 py-7 text-center">
+            <p className="mb-1 text-[15px] font-medium">Couldn’t load admin data</p>
+            <p className="text-muted">{error}</p>
+            <Button variant="secondary" className="mt-3" onClick={fetchAdminData}><RefreshCw size={16} /> Try again</Button>
+          </Card>
+        ) : loading && !stats ? (
+          <p className="text-muted">Loading…</p>
+        ) : (
+          <>
+            {tab === 'overview' ? (
+              <div className="grid gap-5">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Stat icon={Building2} label="Homes" value={stats?.totalApartments || 0} />
+                  <Stat icon={Users} label="Users" value={stats?.totalUsers || 0} />
+                  <Stat icon={Shield} label="Admins" value={stats?.totalAdmins || 0} />
+                  <Stat icon={Database} label="Open databases" value={databaseStatus?.totalConnections || 0} />
+                </div>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <PeopleList title="Newest users" people={stats?.recentUsers} dateKey="createdAt" />
+                  <PeopleList title="Recent sign-ins" people={stats?.recentLogins} dateKey="lastLogin" />
                 </div>
               </div>
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="flex items-center">
-                  <Users className="h-8 w-8 text-green-500" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-400">Total Users</p>
-                    <p className="text-2xl font-bold">{stats?.totalUsers || 0}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="flex items-center">
-                  <Shield className="h-8 w-8 text-purple-500" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-400">Admin Users</p>
-                    <p className="text-2xl font-bold">{stats?.totalAdmins || 0}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="flex items-center">
-                  <Database className="h-8 w-8 text-orange-500" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-400">Active DBs</p>
-                    <p className="text-2xl font-bold">{databaseStatus?.totalConnections || 0}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ) : null}
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <Calendar className="h-5 w-5 mr-2" />
-                  Recent Users
-                </h3>
-                <div className="space-y-3">
-                  {stats?.recentUsers?.map((user, index) => (
-                    <div key={`recent-user-${user.username}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-700">
-                      <div>
-                        <p className="font-medium">{user.username}</p>
-                        <p className="text-sm text-gray-400">{user.apartmentCode}</p>
-                      </div>
-                      <p className="text-sm text-gray-500">{formatDate(user.createdAt)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Recent Logins
-                </h3>
-                <div className="space-y-3">
-                  {stats?.recentLogins?.map((user, index) => (
-                    <div key={`recent-login-${user.username}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-700">
-                      <div>
-                        <p className="font-medium">{user.username}</p>
-                        <p className="text-sm text-gray-400">{user.apartmentCode}</p>
-                      </div>
-                      <p className="text-sm text-gray-500">{formatDate(user.lastLogin)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Apartments Tab */}
-        {activeTab === 'apartments' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Apartment Management</h2>
-              <button
-                onClick={fetchAdminData}
-                className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>Refresh</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Apartment List */}
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4">All Apartments</h3>
-                <div className="space-y-3">
-                  {apartments.map((apartment) => (
-                    <div
-                      key={apartment.code}
-                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                        selectedApartment?.code === apartment.code
-                          ? 'border-emerald-500 bg-emerald-500/10'
-                          : 'border-gray-700 hover:border-gray-600'
-                      }`}
-                      onClick={() => fetchApartmentDetails(apartment.code)}
+            {tab === 'homes' ? (
+              <div className="grid items-start gap-5 lg:grid-cols-2">
+                <Card className="p-2">
+                  {apartments.map((apt) => (
+                    <button
+                      key={apt.code}
+                      type="button"
+                      aria-pressed={selected?.code === apt.code}
+                      onClick={() => selectHome(apt.code)}
+                      className={`flex w-full items-center gap-3 rounded-ctl px-3 py-3 text-left ${selected?.code === apt.code ? 'bg-accent-soft' : 'hover:bg-surface-2'}`}
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold">{apartment.name}</h4>
-                          <p className="text-sm text-gray-400">Code: {apartment.code}</p>
-                          <p className="text-sm text-gray-500">{apartment.totalUsers} users</p>
-                        </div>
-                        <span className="text-xs text-gray-500">{formatDate(apartment.createdAt)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Apartment Details */}
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4">Apartment Details</h3>
-                {selectedApartment ? (
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold text-lg">{selectedApartment.name}</h4>
-                      <p className="text-gray-400">Code: {selectedApartment.code}</p>
-                      <p className="text-sm text-gray-500">
-                        {selectedApartment.users?.length || 0} users • {selectedApartment.tasks?.length || 0} tasks
-                      </p>
-                    </div>
-
-                    <div>
-                      <h5 className="font-medium mb-2">Users</h5>
-                      <div className="space-y-2">
-                        {selectedApartment.users?.map((user) => (
-                          <div key={user.id} className="bg-gray-700 rounded p-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium">{user.username}</p>
-                                <p className="text-sm text-gray-400">{user.email}</p>
-                                {user.isAdmin && (
-                                  <span className="inline-block px-2 py-1 text-xs bg-purple-600 text-white rounded mt-1">
-                                    Admin
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => togglePasswordVisibility(user.id)}
-                                  className="text-gray-400 hover:text-white"
-                                >
-                                  {showPasswords[user.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </button>
-                                <button
-                                  onClick={() => copyToClipboard(user.password, `password-${user.id}`)}
-                                  className="text-gray-400 hover:text-white"
-                                >
-                                  {copiedItems[`password-${user.id}`] ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                </button>
-                              </div>
-                            </div>
-                            {showPasswords[user.id] && (
-                              <div className="mt-2 p-2 bg-gray-600 rounded text-sm font-mono">
-                                {user.password}
-                              </div>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">
-                              Created: {formatDate(user.createdAt)}
-                              {user.lastLogin && ` • Last login: ${formatDate(user.lastLogin)}`}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {selectedApartment.tasks?.length > 0 && (
-                      <div>
-                        <h5 className="font-medium mb-2">Tasks</h5>
-                        <div className="space-y-1">
-                          {selectedApartment.tasks?.map((task) => (
-                            <div key={task.id} className="bg-gray-700 rounded p-2 text-sm">
-                              <p className="font-medium">{task.name}</p>
-                              <p className="text-gray-400">
-                                Assigned to: {task.assignedTo} • Every {task.frequencyDays} days
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-400">Select an apartment to view details</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Databases Tab */}
-        {activeTab === 'databases' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Database Status</h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4">Main Database</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span>apartment-dashboard</span>
-                    <span className={`font-medium ${getConnectionStatus(databaseStatus?.mainDatabase?.status).color}`}>
-                      {getConnectionStatus(databaseStatus?.mainDatabase?.status).text}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4">Apartment Databases</h3>
-                <div className="space-y-3">
-                  {databaseStatus?.apartmentDatabases?.map((db) => (
-                    <div key={db.apartmentCode} className="flex justify-between items-center">
-                      <div>
-                        <span className="font-medium">{db.apartmentCode}</span>
-                        <p className="text-sm text-gray-400">{db.databaseName}</p>
-                      </div>
-                      <span className={`font-medium ${getConnectionStatus(db.status).color}`}>
-                        {getConnectionStatus(db.status).text}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{apt.name}</span>
+                        <span className="text-xs text-subtle tabular-nums">{apt.code} · {apt.totalUsers} {apt.totalUsers === 1 ? 'user' : 'users'}</span>
                       </span>
-                    </div>
+                      <span className="text-xs text-muted">{formatDate(apt.createdAt)}</span>
+                    </button>
                   ))}
-                </div>
+                </Card>
+                <Card className="p-5">
+                  {selected ? (
+                    <div className="grid gap-4">
+                      <div>
+                        <h2 className="text-xl font-semibold">{selected.name}</h2>
+                        <p className="text-muted tabular-nums">{selected.code} · {selected.users?.length || 0} users · {selected.tasks?.length || 0} chores</p>
+                      </div>
+                      <ul className="grid">
+                        {selected.users?.map((u) => (
+                          <li key={u.id} className="flex items-center gap-3 py-2.5 [&+li]:border-t [&+li]:border-line">
+                            <Avatar name={u.username} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-medium">{u.username}{u.isAdmin ? <span className="ml-2 rounded-pill bg-surface-2 px-1.5 py-0.5 text-xs text-muted">Admin</span> : null}</span>
+                              <span className="text-xs text-subtle">Last sign-in {formatDate(u.lastLogin)}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {selected.tasks?.length ? (
+                        <div>
+                          <h3 className="mb-2 text-xs font-semibold text-muted">Chores</h3>
+                          <ul className="grid gap-1">
+                            {selected.tasks.map((task) => (
+                              <li key={task.id} className="flex justify-between gap-3 rounded-ctl bg-surface-2 px-3 py-2 text-sm">
+                                <span className="truncate">{task.name}</span>
+                                <span className="text-muted">{task.assignedTo || 'Unassigned'} · every {task.frequencyDays}d</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : <p className="text-muted">Select a home to see its members and chores.</p>}
+                </Card>
               </div>
-            </div>
-          </div>
-        )}
+            ) : null}
 
-        {/* Users Tab */}
-        {activeTab === 'users' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">All Users</h2>
-            
-            <div className="bg-gray-800 rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700">
+            {tab === 'users' ? (
+              <Card className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="border-b border-line text-xs text-muted">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Apartment
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Password
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Created
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Last Login
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Role
-                      </th>
+                      {['User', 'Home', 'Created', 'Last sign-in', 'Role'].map((h) => <th key={h} className="px-5 py-3 font-medium">{h}</th>)}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {apartments.flatMap(apt => apt.users || []).map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-700">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium">{user.username}</div>
-                            <div className="text-sm text-gray-400">{user.email}</div>
-                          </div>
+                  <tbody>
+                    {allUsers.map((u) => (
+                      <tr key={u.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                        <td className="px-5 py-3">
+                          <span className="flex items-center gap-3">
+                            <Avatar name={u.username} />
+                            <span><span className="block font-medium">{u.username}</span>{u.email ? <span className="text-xs text-subtle">{u.email}</span> : null}</span>
+                          </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {user.apartmentCode}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => togglePasswordVisibility(user.id)}
-                              className="text-gray-400 hover:text-white"
-                            >
-                              {showPasswords[user.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                            {showPasswords[user.id] && (
-                              <span className="text-sm font-mono bg-gray-600 px-2 py-1 rounded">
-                                {user.password}
-                              </span>
-                            )}
-                            <button
-                              onClick={() => copyToClipboard(user.password, `password-${user.id}`)}
-                              className="text-gray-400 hover:text-white"
-                            >
-                              {copiedItems[`password-${user.id}`] ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {formatDate(user.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.isAdmin ? (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-600 text-white">
-                              Admin
-                            </span>
-                          ) : (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-600 text-white">
-                              User
-                            </span>
-                          )}
-                        </td>
+                        <td className="px-5 py-3 tabular-nums">{u.apartmentCode}</td>
+                        <td className="px-5 py-3 text-muted tabular-nums">{formatDate(u.createdAt)}</td>
+                        <td className="px-5 py-3 text-muted tabular-nums">{formatDate(u.lastLogin)}</td>
+                        <td className="px-5 py-3"><span className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">{u.isAdmin ? 'Admin' : 'Member'}</span></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
+              </Card>
+            ) : null}
+
+            {tab === 'databases' ? (
+              <Card className="p-5">
+                <ul className="grid">
+                  <li className="flex items-center justify-between py-2.5">
+                    <span><span className="block font-medium">Main database</span><span className="text-xs text-subtle">apartment-dashboard</span></span>
+                    <span className={`text-sm font-medium ${connection(databaseStatus?.mainDatabase?.status).className}`}>{connection(databaseStatus?.mainDatabase?.status).text}</span>
+                  </li>
+                  {databaseStatus?.apartmentDatabases?.map((db) => (
+                    <li key={db.apartmentCode} className="flex items-center justify-between border-t border-line py-2.5">
+                      <span><span className="block font-medium tabular-nums">{db.apartmentCode}</span><span className="text-xs text-subtle">{db.databaseName}</span></span>
+                      <span className={`text-sm font-medium ${connection(db.status).className}`}>{connection(db.status).text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ) : null}
+          </>
         )}
       </main>
     </div>
   )
 }
-
-export default AdminDashboard

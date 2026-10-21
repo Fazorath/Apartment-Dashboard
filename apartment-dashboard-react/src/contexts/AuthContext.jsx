@@ -194,8 +194,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
   }
 
+  const setApartmentName = (apartmentName) => {
+    setUser((prev) => (prev ? { ...prev, apartmentName } : prev))
+  }
+
   const value = {
     user,
+    setApartmentName,
     loading,
     login,
     register,

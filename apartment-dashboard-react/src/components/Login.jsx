@@ -1,407 +1,138 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { Eye, EyeOff, House } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { Lock, Eye, EyeOff, User, KeyRound } from 'lucide-react'
+import Button from './ui/Button'
+import Segmented from './ui/Segmented'
+import { Field, Input } from './ui/Field'
+
+const MODES = [
+  { value: 'signin', label: 'Sign in' },
+  { value: 'join', label: 'Join a home' },
+  { value: 'start', label: 'Start a home' },
+]
+
+const SUBMIT_LABEL = { signin: 'Sign in', join: 'Join home', start: 'Start home' }
 
 const Login = () => {
-  const [isLogin, setIsLogin] = useState(true)
-  const [isCreateApartment, setIsCreateApartment] = useState(false)
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    apartmentCode: '',
-    apartmentName: '',
-    email: ''
-  })
+  const [mode, setMode] = useState('signin')
+  const [formData, setFormData] = useState({ username: '', password: '', apartmentCode: '', apartmentName: '', email: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  
-  const { user, login, register, createApartment, generateApartmentCode } = useAuth()
+  const [rememberMe, setRememberMe] = useState(true)
 
-  useEffect(() => {
-    if (user) {
-      window.location.href = '/dashboard'
-    }
-  }, [user])
+  const { login, register, createApartment, generateApartmentCode } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
-      let result
-      if (isLogin) {
-        result = await login(formData.username, formData.password, formData.apartmentCode, rememberMe)
-      } else if (isCreateApartment) {
-        result = await createApartment(formData.username, formData.password, formData.apartmentCode, formData.apartmentName, formData.email)
-      } else {
-        result = await register(formData.username, formData.password, formData.apartmentCode, formData.email)
-      }
-
-      if (!result.success) {
-        setError(result.error)
-      }
-      // No need to redirect - the App.jsx will automatically show Dashboard when user is set
+      const { username, password, apartmentCode, apartmentName, email } = formData
+      const result = mode === 'signin'
+        ? await login(username, password, apartmentCode, rememberMe)
+        : mode === 'start'
+          ? await createApartment(username, password, apartmentCode, apartmentName, email)
+          : await register(username, password, apartmentCode, email)
+      // On success AuthContext sets the user and App swaps in the dashboard.
+      if (!result.success) setError(result.error)
     } catch (err) {
       console.error('Login error:', err)
-      setError('An unexpected error occurred')
+      setError('Something went wrong. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleGenerateApartmentCode = async () => {
-    try {
-      const result = await generateApartmentCode()
-      if (result.success) {
-        setFormData(prev => ({
-          ...prev,
-          apartmentCode: result.apartmentCode
-        }))
-      } else {
-        setError(result.error)
-      }
-    } catch (err) {
-      console.error('Generate apartment code error:', err)
-      setError('Failed to generate apartment code')
-    }
+  const handleGenerateCode = async () => {
+    const result = await generateApartmentCode()
+    if (result.success) setFormData((prev) => ({ ...prev, apartmentCode: result.apartmentCode }))
+    else setError(result.error)
+  }
+
+  const switchMode = (next) => {
+    setMode(next)
+    setError('')
   }
 
   return (
-    <div className="min-h-screen text-[#EDEEF2] antialiased relative overflow-hidden">
-      {/* Dynamic Background - Warm Glow Animation */}
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-orange-800/15 to-blue-900/25 animate-gradient-shift"></div>
-      
-      {/* Abstract Pattern Overlay */}
-      <div className="absolute inset-0 opacity-[0.03]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,255,255,0.1)_0%,transparent_50%)] animate-pulse-slow"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.08)_0%,transparent_50%)] animate-pulse-slower"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_40%,rgba(255,255,255,0.05)_0%,transparent_50%)] animate-pulse-slowest"></div>
-      </div>
-      
-      {/* Subtle Geometric Patterns */}
-      <div className="absolute inset-0 opacity-[0.02]">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 border border-white/10 rounded-full animate-float"></div>
-        <div className="absolute top-3/4 right-1/4 w-32 h-32 border border-white/8 rounded-full animate-float-delayed"></div>
-        <div className="absolute bottom-1/4 left-1/3 w-48 h-48 border border-white/6 rounded-full animate-float-slow"></div>
-      </div>
-
-      {/* Main content */}
-      <main className="relative z-10 flex min-h-screen items-center justify-center p-6">
-        <div className="w-full max-w-[420px] mx-auto flex justify-center">
-
-          {/* Glassmorphism Card */}
-          <section 
-            className="login-card relative rounded-3xl bg-white/[0.08] backdrop-blur-2xl 
-                       shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)]
-                       border border-white/10"
-          >
-            {/* Main Content Container with Reduced Padding */}
-                <div className="flex flex-col gap-3 py-1.5">
-              <h1 className="text-[30px] sm:text-[32px] font-semibold tracking-tight leading-[1.1] text-center">
-                {isLogin ? 'Roommate Dash' : isCreateApartment ? 'Create New Apartment' : 'Join Apartment'}
-              </h1>
-              <p className="text-[14px] text-neutral-400 leading-[1.45] text-center">
-                {isLogin ? "Let's keep your chores in check." : isCreateApartment ? 'Set up a new apartment dashboard for your household.' : 'Join an existing apartment dashboard.'}
-              </p>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {/* Username - Floating Label */}
-              <div className="relative">
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  placeholder=" "
-                  autoComplete="username"
-                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
-                           text-[15px] text-white transition-all duration-200 ease-out
-                           focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                           placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
-                  required
-                />
-                <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
-                                peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
-                                peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                peer-[&:not(:placeholder-shown)]:opacity-0
-                                pointer-events-none select-none">
-                  Username
-                </label>
-                {/* Right-side username key icon (centered in capsule) */}
-                <div
-                  aria-hidden="true"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-neutral-400
-                             flex items-center justify-center leading-none p-0"
-                >
-                  <KeyRound className="h-4 w-4" />
-                </div>
-              </div>
-
-              {/* Password - Floating Label */}
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder=" "
-                  autoComplete="current-password"
-                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pt-6 pb-2 pr-12 outline-none
-                           text-[15px] text-white transition-all duration-200 ease-out
-                           focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                           placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
-                  required
-                />
-                <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
-                                peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
-                                peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                peer-[&:not(:placeholder-shown)]:opacity-0
-                                pointer-events-none select-none">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  aria-pressed={showPassword}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg text-neutral-400 hover:text-emerald-400
-                           hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 ease-out
-                           flex items-center justify-center leading-none p-0"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-
-              {/* Email - Only show for registration */}
-              {!isLogin && (
-                <div className="relative">
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder=" "
-                    className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
-                             text-[15px] text-white transition-all duration-200 ease-out
-                             focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                             placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
-                  />
-                  <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
-                                  peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
-                                  peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                  peer-[&:not(:placeholder-shown)]:opacity-0
-                                  pointer-events-none select-none">
-                    Email (Optional)
-                  </label>
-                </div>
-              )}
-
-              {/* Apartment Name - Only show for apartment creation */}
-              {isCreateApartment && (
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="apartmentName"
-                    value={formData.apartmentName}
-                    onChange={handleChange}
-                    placeholder=" "
-                    className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
-                             text-[15px] text-white transition-all duration-200 ease-out
-                             focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                             placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
-                    required
-                  />
-                  <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
-                                  peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
-                                  peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                  peer-[&:not(:placeholder-shown)]:opacity-0
-                                  pointer-events-none select-none">
-                    Apartment Name
-                  </label>
-                </div>
-              )}
-
-              {/* Apartment Code - Required for both login and registration */}
-              <div className="relative">
-                <input
-                  type="text"
-                  name="apartmentCode"
-                  value={formData.apartmentCode}
-                  onChange={handleChange}
-                  placeholder=" "
-                  className="peer w-full h-14 rounded-2xl bg-white/[0.06] border border-white/10 pl-4 pr-4 pt-6 pb-2 outline-none
-                           text-[15px] text-white transition-all duration-200 ease-out
-                           focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20
-                           placeholder-shown:pt-4" style={{paddingLeft: '15px'}}
-                  required
-                />
-                <label className="absolute left-4 top-2 text-xs font-medium text-neutral-400 transition-all duration-200 ease-out
-                                peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-400
-                                peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:text-neutral-500
-                                peer-[&:not(:placeholder-shown)]:opacity-0
-                                pointer-events-none select-none">
-                  Apartment Code
-                </label>
-                {/* Generate button for apartment creation */}
-                {isCreateApartment && (
-                  <button
-                    type="button"
-                    onClick={handleGenerateApartmentCode}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 h-8 px-3 rounded-lg text-xs font-medium text-emerald-400 hover:text-emerald-300
-                             hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all duration-200 ease-out
-                             bg-white/5 border border-emerald-400/20"
-                  >
-                    Generate
-                  </button>
-                )}
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="flex items-center gap-3 rounded-xl border border-[#FF5C5C]/60 bg-[#FF5C5C]/10 p-3 backdrop-blur">
-                  <div className="w-4 h-4 rounded-full bg-[#FF5C5C] flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">!</span>
-                  </div>
-                  <p className="text-[#FF7A7A] text-sm">{error}</p>
-                </div>
-              )}
-
-                {/* Remember me & Forgot password - Only show for login */}
-                {isLogin && (
-                  <div className="flex items-center justify-between text-sm">
-                    <label className="inline-flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="h-4 w-4 rounded border-white/20 bg-white/5 focus:ring-2 focus:ring-emerald-400/20 
-                                 checked:bg-emerald-500 checked:border-emerald-500" 
-                      />
-                      <span className="text-neutral-400">Remember me</span>
-                    </label>
-                    <a href="#" className="text-neutral-300 hover:text-emerald-400 underline underline-offset-4 transition-colors duration-200">
-                      Forgot password?
-                    </a>
-                  </div>
-                )}
-
-                {/* Enhanced CTA Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold tracking-tight
-                           shadow-lg hover:shadow-xl hover:from-emerald-400 hover:to-teal-400 
-                           active:transform active:scale-[0.98] active:translate-y-[1px]
-                           focus:outline-none focus:ring-4 focus:ring-emerald-400/30
-                           disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none
-                           relative overflow-hidden transition-all duration-200 ease-out
-                           before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/0 before:via-white/10 before:to-white/0
-                           before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700"
-                >
-                  <span className={`relative z-10 ${loading ? "translate-x-[-6px]" : ""}`}>
-                    {isLogin ? 'Sign in' : isCreateApartment ? 'Create Apartment' : 'Join Apartment'}
-                  </span>
-                  {loading && (
-                    <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin z-10" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="9" stroke="currentColor" opacity=".25" />
-                      <path d="M21 12a9 9 0 0 1-9 9" stroke="currentColor" />
-                    </svg>
-                  )}
-                </button>
-              </form>
-
-              {/* Separator */}
-              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-
-              {/* Secondary Action - Separated from main form */}
-              <div className="text-center text-sm text-neutral-400 space-y-2">
-                {isLogin ? (
-                  <>
-                    <p>
-                      New here? <button
-                        type="button"
-                        onClick={() => {
-                          setIsLogin(false)
-                          setIsCreateApartment(false)
-                        }}
-                        className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                      >
-                        Join an apartment
-                      </button>
-                    </p>
-                    <p>
-                      Or <button
-                        type="button"
-                        onClick={() => {
-                          setIsLogin(false)
-                          setIsCreateApartment(true)
-                        }}
-                        className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                      >
-                        Create a new apartment
-                      </button>
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p>
-                      Already have an account? <button
-                        type="button"
-                        onClick={() => {
-                          setIsLogin(true)
-                          setIsCreateApartment(false)
-                        }}
-                        className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                      >
-                        Sign in
-                      </button>
-                    </p>
-                    {!isCreateApartment && (
-                      <p>
-                        Want to create a new apartment? <button
-                          type="button"
-                          onClick={() => setIsCreateApartment(true)}
-                          className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                        >
-                          Create apartment
-                        </button>
-                      </p>
-                    )}
-                    {isCreateApartment && (
-                      <p>
-                        Want to join an existing apartment? <button
-                          type="button"
-                          onClick={() => setIsCreateApartment(false)}
-                          className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors duration-200 font-medium"
-                        >
-                          Join apartment
-                        </button>
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Legal microcopy - Secondary information */}
-              <p className="text-center text-[11px] leading-4 text-neutral-500 opacity-70">
-                By continuing, you agree to our{' '}
-                <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Terms</a>
-                {' '}and{' '}
-                <a href="#" className="underline hover:text-neutral-300 transition-colors duration-200">Privacy Policy</a>.
-              </p>
+    <div className="min-h-screen bg-bg px-4 text-ink">
+      <main className="mx-auto grid min-h-screen max-w-[420px] place-items-center py-10">
+        <form onSubmit={handleSubmit} className="grid w-full gap-5 rounded-sheet border border-line bg-surface px-7 pt-8 pb-7 shadow-card max-sm:px-5" noValidate>
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-accent text-on-accent"><House size={20} /></div>
+            <div>
+              <h1 className="text-[26px] leading-8 font-bold tracking-tight">Roommate Dash</h1>
+              <p className="text-muted">Shared chores, without the reminders.</p>
             </div>
-          </section>
-        </div>
+          </div>
+
+          <Segmented options={MODES} value={mode} onChange={switchMode} label="Choose an option" stretch />
+
+          {mode === 'start' ? (
+            <Field label="Home name" htmlFor="login-home">
+              <Input id="login-home" name="apartmentName" value={formData.apartmentName} onChange={handleChange} placeholder="e.g. Maple Street" maxLength={50} required />
+            </Field>
+          ) : null}
+
+          <Field label="Username" htmlFor="login-username">
+            <Input id="login-username" name="username" value={formData.username} onChange={handleChange} autoComplete="username" autoCapitalize="none" required />
+          </Field>
+
+          <Field label="Password" htmlFor="login-password" hint={mode === 'signin' ? null : 'At least 6 characters.'}>
+            <div className="relative">
+              <Input
+                id="login-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={handleChange}
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                className="pr-12"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                className="absolute top-1 right-1 grid h-9 w-9 place-items-center rounded-lg text-subtle hover:bg-surface-2 hover:text-ink"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </Field>
+
+          <Field
+            label="Home code"
+            htmlFor="login-code"
+            hint={mode === 'start' ? 'Roommates use this code to join. 4–8 letters or numbers.' : mode === 'join' ? 'Ask a roommate for the 4–8 character code.' : null}
+          >
+            <div className="flex gap-2">
+              <Input id="login-code" name="apartmentCode" value={formData.apartmentCode} onChange={handleChange} className="uppercase tracking-[0.08em]" autoCapitalize="characters" required={mode !== 'signin'} />
+              {mode === 'start' ? <Button variant="secondary" size="lg" onClick={handleGenerateCode}>Generate</Button> : null}
+            </div>
+          </Field>
+
+          {mode === 'signin' ? (
+            <label className="flex items-center gap-2 text-muted">
+              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
+              Keep me signed in
+            </label>
+          ) : (
+            <Field label="Email" htmlFor="login-email" optional>
+              <Input id="login-email" name="email" type="email" value={formData.email} onChange={handleChange} autoComplete="email" placeholder="you@example.com" />
+            </Field>
+          )}
+
+          {error ? <p className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">{error}</p> : null}
+
+          <Button type="submit" variant="primary" size="lg" loading={loading}>{SUBMIT_LABEL[mode]}</Button>
+        </form>
       </main>
     </div>
   )
