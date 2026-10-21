@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { PRIORITIES } from './priorities.js'
 
 const taskSchema = new mongoose.Schema({
   name: {
@@ -43,6 +44,11 @@ const taskSchema = new mongoose.Schema({
   active: {
     type: Boolean,
     default: true
+  },
+  priority: {
+    type: String,
+    enum: PRIORITIES,
+    default: 'normal'
   },
   lastCompleted: {
     type: Date

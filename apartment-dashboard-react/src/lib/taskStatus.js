@@ -103,6 +103,15 @@ export const frequencyText = (days) => {
   return `Every ${days} days`
 }
 
+export const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'High' },
+]
+
+// A task's priority, or 'normal' for chores saved before priorities existed.
+export const toPriority = (value) => (PRIORITY_OPTIONS.some((option) => option.value === value) ? value : 'normal')
+
 const byPinned = (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
 const byName = (a, b) => a.name.localeCompare(b.name)
 // Never-done chores compare as -Infinity, so two of them give NaN and fall through to the next rule.
@@ -113,13 +122,18 @@ const byAssignee = (a, b) => Number(!assignee(a)) - Number(!assignee(b)) || assi
 // Compared by calendar day, newest first; never-done chores go last.
 const lastDoneTime = (task) => toLocalDate(task.lastDone)?.getTime() ?? -Infinity
 const byRecentlyDone = (a, b) => lastDoneTime(b) - lastDoneTime(a)
+// High first; a missing or unknown priority counts as normal.
+const PRIORITY_RANK = { high: 0, normal: 1, low: 2 }
+const priorityRank = (task) => PRIORITY_RANK[toPriority(task.priority)]
+const byPriority = (a, b) => priorityRank(a) - priorityRank(b)
 
 // Each sort key's rules after pinned-first, which every key shares.
 const COMPARATORS = {
-  due: (today) => [byUrgency(today), byName],
+  due: (today) => [byPriority, byUrgency(today), byName],
   name: (today) => [byName, byUrgency(today)],
   assignee: (today) => [byAssignee, byName, byUrgency(today)],
   recent: () => [byRecentlyDone, byName],
+  priority: (today) => [byPriority, byUrgency(today), byName],
 }
 
 export const SORT_OPTIONS = [
@@ -127,6 +141,7 @@ export const SORT_OPTIONS = [
   { value: 'name', label: 'Name' },
   { value: 'assignee', label: 'Assignee' },
   { value: 'recent', label: 'Recently done' },
+  { value: 'priority', label: 'Priority' },
 ]
 
 // A stored or otherwise untrusted sort key, or 'due' when it is missing or unknown.
