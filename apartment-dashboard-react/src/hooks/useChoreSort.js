@@ -7,7 +7,7 @@ const readSortKey = () => {
   try {
     return toSortKey(localStorage.getItem(STORAGE_KEY))
   } catch {
-    return 'due'
+    return toSortKey(null)
   }
 }
 

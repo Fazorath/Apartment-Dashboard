@@ -346,7 +346,7 @@ export default function Dashboard() {
                   <select
                     value={sortKey}
                     onChange={(event) => setSortKey(event.target.value)}
-                    className="h-9 appearance-none rounded-ctl border border-line bg-surface-2 pr-8 pl-3 text-sm font-medium text-ink transition-[border-color,background-color] duration-150 hover:border-subtle focus:border-accent focus:bg-surface"
+                    className="h-9 appearance-none rounded-ctl border border-line bg-surface-2 pr-8 pl-3 text-sm font-medium text-ink transition-[border-color,background-color,box-shadow] duration-150 hover:border-subtle focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_var(--accent-soft)]"
                   >
                     {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
