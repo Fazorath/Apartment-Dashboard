@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareTasks } from './taskStatus'
+import { sortTasks, toSortKey } from './taskStatus'
 
 const TODAY = new Date(2026, 9, 20) // Oct 20, local time
 
@@ -11,9 +11,9 @@ const chore = (name, { frequencyDays = 7, lastDone = null, pinned = false, activ
   active,
 })
 
-const order = (tasks) => [...tasks].sort((a, b) => compareTasks(a, b, TODAY)).map((t) => t.name)
+const order = (tasks, sortKey = 'due') => sortTasks(tasks, sortKey, TODAY).map((t) => t.name)
 
-describe('chore ordering', () => {
+describe('sorting by due date', () => {
   it('puts pinned chores before more urgent unpinned ones', () => {
     const tasks = [
       chore('Mop floors', { lastDone: '2026-10-01' }), // 12 days overdue
@@ -66,5 +66,94 @@ describe('chore ordering', () => {
       chore('Air out rugs'),
     ]
     expect(order(tasks)).toEqual(['Feed cat', 'Clean filter', 'Air out rugs'])
+  })
+})
+
+describe('sorting by name', () => {
+  it('orders alphabetically regardless of urgency, pinned chores first', () => {
+    const tasks = [
+      chore('Vacuum', { lastDone: '2026-10-01' }), // very overdue
+      chore('Take out trash', { lastDone: '2026-10-19', pinned: true }),
+      chore('Dust shelves', { lastDone: '2026-10-19' }),
+      chore('Air filter', { frequencyDays: 30, lastDone: '2026-10-19', pinned: true }),
+    ]
+    expect(order(tasks, 'name')).toEqual(['Air filter', 'Take out trash', 'Dust shelves', 'Vacuum'])
+  })
+
+  it('breaks a name tie by urgency', () => {
+    const tasks = [
+      chore('Water plant', { lastDone: '2026-10-19' }), // due in 6 days
+      chore('Water plant', { lastDone: '2026-10-10' }), // 3 days overdue
+    ]
+    expect(sortTasks(tasks, 'name', TODAY).map((t) => t.lastDone)).toEqual(['2026-10-10', '2026-10-19'])
+  })
+})
+
+describe('sorting by assignee', () => {
+  it('groups chores by assignee, unassigned last, then by chore name', () => {
+    const tasks = [
+      chore('Water plant'),
+      { ...chore('Vacuum'), assignedTo: 'sam' },
+      { ...chore('Mop floors'), assignedTo: '  ' },
+      { ...chore('Dishes'), assignedTo: 'Alex' },
+      { ...chore('Clean oven'), assignedTo: 'Sam' },
+      { ...chore('Laundry'), assignedTo: 'Alex' },
+    ]
+    expect(order(tasks, 'assignee')).toEqual(['Dishes', 'Laundry', 'Clean oven', 'Vacuum', 'Mop floors', 'Water plant'])
+  })
+
+  it('keeps pinned chores first, even when unassigned', () => {
+    const tasks = [
+      { ...chore('Dishes'), assignedTo: 'Alex' },
+      chore('Feed cat', { pinned: true }),
+    ]
+    expect(order(tasks, 'assignee')).toEqual(['Feed cat', 'Dishes'])
+  })
+})
+
+describe('sorting by recently done', () => {
+  it('puts the most recently done first and never-done chores last', () => {
+    const tasks = [
+      chore('Mop floors'),
+      chore('Vacuum', { lastDone: '2026-10-12' }),
+      chore('Dishes', { frequencyDays: 1, lastDone: '2026-10-20' }),
+      chore('Clean oven'),
+      chore('Laundry', { lastDone: '2026-10-18' }),
+    ]
+    expect(order(tasks, 'recent')).toEqual(['Dishes', 'Laundry', 'Vacuum', 'Clean oven', 'Mop floors'])
+  })
+
+  it('treats chores done on the same day as a tie, broken by name', () => {
+    const tasks = [
+      chore('Wipe counters', { lastDone: new Date(2026, 9, 19, 21, 30).toISOString() }),
+      chore('Dust shelves', { lastDone: '2026-10-19' }),
+    ]
+    expect(order(tasks, 'recent')).toEqual(['Dust shelves', 'Wipe counters'])
+  })
+
+  it('keeps pinned chores first, even when never done', () => {
+    const tasks = [
+      chore('Dishes', { lastDone: '2026-10-20' }),
+      chore('Feed cat', { pinned: true }),
+    ]
+    expect(order(tasks, 'recent')).toEqual(['Feed cat', 'Dishes'])
+  })
+})
+
+describe('choosing a sort key', () => {
+  it('keeps a known stored sort key', () => {
+    expect(['due', 'name', 'assignee', 'recent'].map(toSortKey)).toEqual(['due', 'name', 'assignee', 'recent'])
+  })
+
+  it('falls back to due date when nothing or something unknown is stored', () => {
+    expect([null, undefined, '', 'priority', 'toString'].map(toSortKey)).toEqual(['due', 'due', 'due', 'due', 'due'])
+  })
+
+  it('sorts by due date when given an unknown key', () => {
+    const tasks = [
+      chore('Air filter', { lastDone: '2026-10-19' }),
+      chore('Vacuum', { lastDone: '2026-10-10' }),
+    ]
+    expect(order(tasks, 'bogus')).toEqual(['Vacuum', 'Air filter'])
   })
 })
