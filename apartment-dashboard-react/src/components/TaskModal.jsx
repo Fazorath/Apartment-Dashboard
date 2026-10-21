@@ -5,9 +5,10 @@ import Button from './ui/Button'
 import Chip from './ui/Chip'
 import Avatar from './ui/Avatar'
 import Switch from './ui/Switch'
+import Segmented from './ui/Segmented'
 import ConfirmDialog from './ui/ConfirmDialog'
 import { Field, Input, Textarea } from './ui/Field'
-import { addDays, daysBetween, toISODate, toLocalDate } from '../lib/taskStatus'
+import { addDays, daysBetween, DEFAULT_PRIORITY, PRIORITY_OPTIONS, toISODate, toLocalDate, toPriority } from '../lib/taskStatus'
 import { sameName } from '../lib/people'
 
 const FREQUENCY_PRESETS = [
@@ -27,7 +28,7 @@ const LAST_DONE_OPTIONS = [
 
 const initialForm = (task, me) => {
   if (!task) {
-    return { name: '', assignedTo: me, newPerson: false, frequencyDays: 7, lastDoneChoice: 'today', lastDoneDate: toISODate(new Date()), notes: '', tags: [], pinned: false }
+    return { name: '', assignedTo: me, newPerson: false, frequencyDays: 7, lastDoneChoice: 'today', lastDoneDate: toISODate(new Date()), notes: '', tags: [], pinned: false, priority: DEFAULT_PRIORITY }
   }
   const lastDone = toLocalDate(task.lastDone)
   const since = lastDone ? daysBetween(lastDone, new Date()) : null
@@ -41,6 +42,7 @@ const initialForm = (task, me) => {
     notes: task.notes || '',
     tags: Array.isArray(task.tags) ? task.tags : [],
     pinned: Boolean(task.pinned),
+    priority: toPriority(task.priority),
   }
 }
 
@@ -99,6 +101,7 @@ function TaskForm({ task, me, roommates, onCancel, onSave, titleId, requestClose
       notes: form.notes,
       tags,
       pinned: form.pinned,
+      priority: form.priority,
     }
     const nextLastDone = lastDoneValue(form)
     const prevLastDone = task ? (toLocalDate(task.lastDone) ? toISODate(toLocalDate(task.lastDone)) : null) : undefined
@@ -165,6 +168,10 @@ function TaskForm({ task, me, roommates, onCancel, onSave, titleId, requestClose
             {form.lastDoneChoice === 'date' ? (
               <Input type="date" aria-label="Date last done" max={toISODate(new Date())} value={form.lastDoneDate} onChange={(e) => update({ lastDoneDate: e.target.value })} />
             ) : null}
+          </Field>
+
+          <Field label="Priority">
+            <Segmented label="Priority" options={PRIORITY_OPTIONS} value={form.priority} onChange={(priority) => update({ priority })} />
           </Field>
 
           <Field label="Notes" htmlFor="task-notes" optional>

@@ -1,6 +1,10 @@
 import express from 'express'
+import { PRIORITIES } from '../models/priorities.js'
 
 const router = express.Router()
+
+const invalidPriority = (priority) => priority !== undefined && !PRIORITIES.includes(priority)
+const PRIORITY_ERROR = `Priority must be one of: ${PRIORITIES.join(', ')}`
 
 // Get all tasks for apartment
 router.get('/', async (req, res) => {
@@ -33,12 +37,16 @@ router.post('/', async (req, res) => {
       notes,
       tags,
       pinned,
-      active
+      active,
+      priority
     } = req.body
 
     // Validation
     if (!name || !frequencyDays) {
       return res.status(400).json({ error: 'Name and frequency are required' })
+    }
+    if (invalidPriority(priority)) {
+      return res.status(400).json({ error: PRIORITY_ERROR })
     }
 
     const { Task } = req.apartmentModels
@@ -51,6 +59,7 @@ router.post('/', async (req, res) => {
       tags: Array.isArray(tags) ? tags : [],
       pinned: Boolean(pinned),
       active: active !== false,
+      priority,
       user: req.user._id
     }
     
@@ -76,10 +85,15 @@ router.put('/:id', async (req, res) => {
       tags,
       pinned,
       active,
+      priority,
       lastCompleted,
       lastCompletedBy,
       previousLastDone
     } = req.body
+
+    if (invalidPriority(priority)) {
+      return res.status(400).json({ error: PRIORITY_ERROR })
+    }
 
     // Build update object with only provided fields
     const updateData = {
@@ -94,6 +108,7 @@ router.put('/:id', async (req, res) => {
     if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : []
     if (pinned !== undefined) updateData.pinned = Boolean(pinned)
     if (active !== undefined) updateData.active = active !== false
+    if (priority !== undefined) updateData.priority = priority
     if (lastCompleted !== undefined) updateData.lastCompleted = lastCompleted ? new Date(lastCompleted) : null
     if (lastCompletedBy !== undefined) updateData.lastCompletedBy = lastCompletedBy
     if (previousLastDone !== undefined) updateData.previousLastDone = previousLastDone ? new Date(previousLastDone) : null

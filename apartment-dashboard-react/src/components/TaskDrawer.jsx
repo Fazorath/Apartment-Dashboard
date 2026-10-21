@@ -4,9 +4,10 @@ import Sheet, { SheetBody, SheetFooter, SheetHeader } from './ui/Sheet'
 import Button from './ui/Button'
 import Avatar from './ui/Avatar'
 import StatusPill from './ui/StatusPill'
+import PriorityBadge from './ui/PriorityBadge'
 import { Textarea } from './ui/Field'
 import { updateTask } from '../services/api'
-import { daysBetween, formatShortDate, frequencyText, getTaskStatus, isDoneToday, toLocalDate } from '../lib/taskStatus'
+import { daysBetween, formatShortDate, frequencyText, getTaskStatus, isDoneToday, toLocalDate, toPriority } from '../lib/taskStatus'
 import { sameName } from '../lib/people'
 
 const NOTES_SAVE_DELAY_MS = 700
@@ -74,6 +75,7 @@ function DrawerContent({ task, me, titleId, onClose, onToggleDone, onEdit, onTog
   const lastDone = toLocalDate(task.lastDone)
   const sinceText = lastDone ? daysBetween(lastDone, today) : null
   const isMine = sameName(task.assignedTo, me)
+  const priority = toPriority(task.priority)
 
   return (
     <>
@@ -104,6 +106,8 @@ function DrawerContent({ task, me, titleId, onClose, onToggleDone, onEdit, onTog
             <Avatar name={task.assignedTo} />
             {task.assignedTo ? `${task.assignedTo}${isMine ? ' (you)' : ''}` : <span className="text-subtle">Unassigned</span>}
           </dd>
+          <dt className="text-muted">Priority</dt>
+          <dd className="m-0"><PriorityBadge priority={priority} showNormal /></dd>
           <dt className="text-muted">Repeats</dt>
           <dd className="m-0">{frequencyText(task.frequencyDays)}</dd>
           <dt className="text-muted">Last done</dt>

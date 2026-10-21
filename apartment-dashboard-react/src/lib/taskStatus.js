@@ -103,6 +103,17 @@ export const frequencyText = (days) => {
   return `Every ${days} days`
 }
 
+// Lowest to highest, the order the task modal shows them.
+export const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'High' },
+]
+export const DEFAULT_PRIORITY = 'normal'
+
+// A task's priority, or the default for chores saved before priorities existed.
+export const toPriority = (value) => (PRIORITY_OPTIONS.some((option) => option.value === value) ? value : DEFAULT_PRIORITY)
+
 const byPinned = (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
 const byName = (a, b) => a.name.localeCompare(b.name)
 // Never-done chores compare as -Infinity, so two of them give NaN and fall through to the next rule.
@@ -113,13 +124,17 @@ const byAssignee = (a, b) => Number(!assignee(a)) - Number(!assignee(b)) || assi
 // Compared by calendar day, newest first; never-done chores go last.
 const lastDoneTime = (task) => toLocalDate(task.lastDone)?.getTime() ?? -Infinity
 const byRecentlyDone = (a, b) => lastDoneTime(b) - lastDoneTime(a)
+// Highest priority first; a missing or unknown priority counts as the default.
+const priorityRank = (task) => PRIORITY_OPTIONS.findIndex((option) => option.value === toPriority(task.priority))
+const byPriority = (a, b) => priorityRank(b) - priorityRank(a)
 
 // Each sort key's rules after pinned-first, which every key shares.
 const COMPARATORS = {
-  due: (today) => [byUrgency(today), byName],
+  due: (today) => [byPriority, byUrgency(today), byName],
   name: (today) => [byName, byUrgency(today)],
   assignee: (today) => [byAssignee, byName, byUrgency(today)],
   recent: () => [byRecentlyDone, byName],
+  priority: (today) => [byPriority, byUrgency(today), byName],
 }
 
 export const SORT_OPTIONS = [
@@ -127,6 +142,7 @@ export const SORT_OPTIONS = [
   { value: 'name', label: 'Name' },
   { value: 'assignee', label: 'Assignee' },
   { value: 'recent', label: 'Recently done' },
+  { value: 'priority', label: 'Priority' },
 ]
 
 // A stored or otherwise untrusted sort key, or 'due' when it is missing or unknown.

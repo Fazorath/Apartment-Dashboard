@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { PRIORITIES } from '../models/priorities.js'
 
 class DatabaseManager {
   constructor() {
@@ -141,6 +142,11 @@ class DatabaseManager {
       active: {
         type: Boolean,
         default: true
+      },
+      priority: {
+        type: String,
+        enum: PRIORITIES,
+        default: 'normal'
       },
       lastCompleted: {
         type: Date
