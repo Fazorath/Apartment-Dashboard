@@ -1,620 +1,466 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { ChevronDown, Plus, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { getTasks, createTask, updateTask, markTaskDone } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, markTaskDone } from '../services/api'
+import AppShell from './AppShell'
+import TaskRow from './TaskRow'
+import TaskDrawer from './TaskDrawer'
 import TaskModal from './TaskModal'
-import SettingsModal from './SettingsModal'
-import TaskCard from './TaskCard'
-import TaskDetailsMenu from './TaskDetailsMenu'
+import SettingsSheet from './SettingsSheet'
+import RoommatesPanel from './RoommatesPanel'
+import WeekStrip from './WeekStrip'
+import Card from './ui/Card'
+import Button from './ui/Button'
+import Segmented from './ui/Segmented'
+import Avatar from './ui/Avatar'
+import Toast from './ui/Toast'
+import ConfirmDialog from './ui/ConfirmDialog'
+import { compareTasks, daysBetween, DONE_WINDOW_DAYS, getTaskStatus, GROUPS, isDoneToday, plural, toLocalDate } from '../lib/taskStatus'
+import { displayName, sameName } from '../lib/people'
 
-export default function Dashboard() {
-  const { logout, user } = useAuth()
-  const [tasks, setTasks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [stats, setStats] = useState({
-    overdue: 0,
-    soon: 0,
-    total: 0,
-    completed: 0,
-    weeklyChanges: {
-      overdue: 0,
-      soon: 0,
-      active: 0,
-      completed: 0
-    }
-  })
-  const [showModal, setShowModal] = useState(false)
-  const [editingTask, setEditingTask] = useState(null)
-  const [showSettings, setShowSettings] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('All')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showTaskDetails, setShowTaskDetails] = useState(false)
-  const [selectedTask, setSelectedTask] = useState(null)
+const HOLD_MS = 5000
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-  // Fetch tasks and stats
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        const tasksData = await getTasks()
-        setTasks(tasksData)
-        calculateStats(tasksData)
-      } catch (err) {
-        setError(err.message)
-        console.error('Failed to fetch tasks:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
-
-  // Modal handlers
-  const handleOpenModal = (task = null) => {
-    setEditingTask(task)
-    setShowModal(true)
-  }
-
-  const handleCloseModal = () => {
-    setShowModal(false)
-    setEditingTask(null)
-  }
-
-  // Task details menu handlers
-  const handleOpenTaskDetails = (task) => {
-    setSelectedTask(task)
-    setShowTaskDetails(true)
-  }
-
-  const handleCloseTaskDetails = () => {
-    setShowTaskDetails(false)
-    setSelectedTask(null)
-  }
-
-  const handleTaskUpdated = (updatedTask) => {
-    setTasks(prev => prev.map(task => 
-      task._id === updatedTask._id ? updatedTask : task
-    ))
-    setSelectedTask(updatedTask)
-  }
-
-  const handleTaskDeleted = (taskId) => {
-    setTasks(prev => prev.filter(task => task._id !== taskId))
-    calculateStats(tasks.filter(task => task._id !== taskId))
-  }
-
-  const handleSaveTask = async (taskData) => {
-    try {
-      if (editingTask) {
-        // Update existing task
-        const updatedTask = await updateTask({ id: editingTask._id, ...taskData })
-        setTasks(prev => prev.map(task => 
-          task._id === editingTask._id ? updatedTask : task
-        ))
-      } else {
-        // Create new task
-        const newTask = await createTask(taskData)
-        setTasks(prev => [...prev, newTask])
-      }
-      
-      // Recalculate stats
-      const updatedTasks = editingTask 
-        ? tasks.map(task => task._id === editingTask._id ? { ...task, ...taskData } : task)
-        : [...tasks, { ...taskData, _id: Date.now() }] // temporary ID for stats calculation
-      
-      calculateStats(updatedTasks)
-      handleCloseModal()
-    } catch (error) {
-      console.error('Failed to save task:', error)
-      // You could add a toast notification here
-    }
-  }
-
-  const handleTaskCompletion = async (taskId, markAsComplete = true) => {
-    try {
-      let updatedTask
-      
-      if (markAsComplete) {
-        // Mark as done - backend will store the previous lastDone automatically
-        updatedTask = await markTaskDone(taskId)
-      } else {
-        // Unmark - restore the previous lastDone date
-        const currentTask = tasks.find(task => task._id === taskId)
-        if (!currentTask) return
-        
-        // Restore to the previous lastDone date
-        const previousLastDone = currentTask.previousLastDone
-        
-        updatedTask = await updateTask({ 
-          id: taskId, 
-          lastDone: previousLastDone,
-          lastCompleted: null,
-          lastCompletedBy: null,
-          previousLastDone: null
-        })
-      }
-      
-      setTasks(prev => prev.map(task => 
-        task._id === taskId ? updatedTask : task
-      ))
-      
-      // Recalculate stats with updated task
-      const updatedTasks = tasks.map(task => 
-        task._id === taskId ? updatedTask : task
-      )
-      calculateStats(updatedTasks)
-    } catch (error) {
-      console.error('Failed to update task completion:', error)
-      // You could add a toast notification here
-    }
-  }
-
-  const calculateStats = (tasksData) => {
-    const today = new Date()
-    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-    
-    let overdue = 0
-    let soon = 0
-    let completed = 0
-    let active = 0
-    
-    // Weekly change tracking
-    let overdueLastWeek = 0
-    let soonLastWeek = 0
-    let completedThisWeek = 0
-    let activeLastWeek = 0
-    
-    tasksData.forEach(task => {
-      // Count completed tasks based on current completion state (lastCompleted)
-      if (task.lastCompleted) {
-        const daysSinceCompleted = Math.floor((today - new Date(task.lastCompleted)) / (1000 * 60 * 60 * 24))
-        if (daysSinceCompleted <= 30) {
-          completed++
-        }
-        // Count tasks completed this week
-        if (daysSinceCompleted <= 7) {
-          completedThisWeek++
-        }
-      }
-      
-      // Calculate due status based on historical completion (lastDone)
-      if (!task.lastDone) {
-        overdue++
-        active++
-        overdueLastWeek++
-        activeLastWeek++
-        return
-      }
-      
-      const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
-      const daysUntilDue = task.frequencyDays - daysSince
-      
-      // Calculate what the status was one week ago
-      const daysSinceLastWeek = Math.floor((oneWeekAgo - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
-      const daysUntilDueLastWeek = task.frequencyDays - daysSinceLastWeek
-      
-      // Current status
-      if (daysUntilDue <= 0) {
-        overdue++
-        active++
-      } else if (daysUntilDue <= 2) {
-        soon++
-        active++
-      } else {
-        active++
-      }
-      
-      // Last week status
-      if (daysUntilDueLastWeek <= 0) {
-        overdueLastWeek++
-        activeLastWeek++
-      } else if (daysUntilDueLastWeek <= 2) {
-        soonLastWeek++
-        activeLastWeek++
-      } else {
-        activeLastWeek++
-      }
-    })
-    
-    // Calculate weekly changes
-    const overdueChange = overdue - overdueLastWeek
-    const soonChange = soon - soonLastWeek
-    const activeChange = active - activeLastWeek
-    const completedChange = completedThisWeek
-    
-    setStats({
-      overdue,
-      soon,
-      total: active,
-      completed,
-      weeklyChanges: {
-        overdue: overdueChange,
-        soon: soonChange,
-        active: activeChange,
-        completed: completedChange
-      }
-    })
-  }
-
-  // Filtering and search functions
-  const getFilteredTasks = () => {
-    let filteredTasks = tasks
-
-    // Apply status filter
-    if (activeFilter !== 'All') {
-      filteredTasks = tasks.filter(task => {
-        const status = getTaskStatus(task)
-        switch (activeFilter) {
-          case 'Overdue':
-            return status === 'overdue'
-          case 'Soon':
-            return status === 'soon'
-          case 'Completed':
-            return task.lastDone && Math.floor((new Date() - new Date(task.lastDone)) / (1000 * 60 * 60 * 24)) <= 1
-          default:
-            return true
-        }
-      })
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filteredTasks = filteredTasks.filter(task => 
-        task.name.toLowerCase().includes(query) ||
-        (task.assignedTo && task.assignedTo.toLowerCase().includes(query)) ||
-        (task.notes && task.notes.toLowerCase().includes(query))
-      )
-    }
-
-    return filteredTasks
-  }
-
-  // Helper functions to categorize tasks
-  const getTaskStatus = (task) => {
-    if (!task.lastDone) return 'overdue'
-    
-    const today = new Date()
-    const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
-    const daysUntilDue = task.frequencyDays - daysSince
-    
-    if (daysUntilDue <= 0) return 'overdue'
-    if (daysUntilDue <= 2) return 'soon'
-    return 'ok'
-  }
-
-  const getTodayTasks = () => {
-    return tasks.filter(task => {
-      const status = getTaskStatus(task)
-      return status === 'overdue' || status === 'soon'
-    })
-  }
-
-  const getUpcomingTasks = () => {
-    const today = new Date()
-    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-    
-    return tasks.filter(task => {
-      if (!task.lastDone) return false
-      
-      const daysSince = Math.floor((today - new Date(task.lastDone)) / (1000 * 60 * 60 * 24))
-      const daysUntilDue = task.frequencyDays - daysSince
-      
-      return daysUntilDue > 0 && daysUntilDue <= 7
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mx-auto mb-4"></div>
-          <p className="text-zinc-400">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-rose-400 mb-4">⚠️ Error loading dashboard</div>
-          <p className="text-zinc-400 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
-
+const matchesQuery = (task, query) => {
+  const q = query.trim().toLowerCase().replace(/^#/, '')
+  if (!q) return true
   return (
-    <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-200">
-      {/* App Shell */}
-      <header className="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-[#0b0c10]/70 border-b border-white/10">
-        <div className="mx-auto max-w-7xl px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
-            <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/30 flex items-center justify-center flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 lg:h-5 lg:w-5 text-emerald-400" fill="currentColor"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.258.764a1 1 0 0 1 .554 1.705l-3.8 3.705.897 5.225a1 1 0 0 1-1.451 1.054L12 17.77l-4.684 2.2a1 1 0 0 1-1.451-1.055l.897-5.224-3.8-3.705a1 1 0 0 1 .554-1.705l5.258-.764L11.106 2.553A1 1 0 0 1 12 2z"/></svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg lg:text-2xl font-semibold tracking-tight truncate">
-                {user?.apartmentName ? `${user.apartmentName} Dashboard` : 'Dashboard'}
-              </h1>
-              <p className="text-xs lg:text-sm text-zinc-400 hidden sm:block">
-                Recurring chores with last‑done dates & due status
-              </p>
-            </div>
-        </div>
-
-          <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
-            {/* Mobile: Only show Add Task button */}
-          <button
-              onClick={() => handleOpenModal()}
-              className="lg:hidden inline-flex items-center gap-1 rounded-lg bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-2 py-1.5 text-xs hover:bg-indigo-500/25"
-            >
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
-              <span className="hidden xs:inline">Add</span>
-            </button>
-            
-            {/* Desktop: Show Settings and Logout buttons */}
-            <div className="hidden lg:flex items-center gap-3">
-              <button onClick={() => setShowSettings(true)} className="rounded-xl bg-white/[0.06] px-3 py-2 text-sm border border-white/10 hover:bg-white/[0.08] transition">Settings</button>
-              <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-xl bg-rose-500/15 text-rose-300 px-3 py-2 text-sm border border-rose-500/30 hover:bg-rose-500/20 transition">Logout</button>
-            </div>
-            
-            {/* Mobile: Settings and Logout buttons */}
-            <div className="lg:hidden flex items-center gap-1">
-              <button onClick={() => setShowSettings(true)} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-xs border border-white/10 hover:bg-white/[0.08] transition">
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5M19.43 12.97c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/></svg>
-          </button>
-              <button onClick={() => { logout(); window.location.href = '/login' }} className="rounded-lg bg-rose-500/15 text-rose-300 px-2 py-1.5 text-xs border border-rose-500/30 hover:bg-rose-500/20 transition">
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-          </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 lg:px-6 py-6 lg:py-8 space-y-6 lg:space-y-8">
-        {/* Stats Row */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          {[
-            {label: 'Overdue', value: stats.overdue, change: stats.weeklyChanges.overdue},
-            {label: 'Due Soon', value: stats.soon, change: stats.weeklyChanges.soon},
-            {label: 'Active', value: stats.total, change: stats.weeklyChanges.active},
-            {label: 'Completed', value: stats.completed, change: stats.weeklyChanges.completed},
-          ].map((s, i) => (
-            <div key={s.label} className="group rounded-xl lg:rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-3 lg:p-4 hover:from-white/[0.08] transition">
-              <div className="flex items-center justify-between mb-2 lg:mb-3">
-                <p className="text-xs lg:text-sm text-zinc-400 truncate">{s.label}</p>
-                <div className="h-6 w-6 lg:h-8 lg:w-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 24 24" className="h-3 w-3 lg:h-4 lg:w-4 text-zinc-300" fill="currentColor"><path d="M5 3a2 2 0 0 0-2 2v1h18V5a2 2 0 0 0-2-2H5zm16 5H3v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/></svg>
-                </div>
-          </div>
-              <div className="flex items-end justify-between">
-                <span className="text-xl lg:text-3xl font-semibold tracking-tight">{s.value}</span>
-                {s.change !== 0 && (
-                  <span className={`text-xs px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-md lg:rounded-lg border ${
-                    s.change > 0 
-                      ? 'text-emerald-300/80 bg-emerald-500/10 border-emerald-500/30' 
-                      : 'text-rose-300/80 bg-rose-500/10 border-rose-500/30'
-                  }`}>
-                    {s.change > 0 ? '+' : ''}{s.change}
-                  </span>
-                )}
-          </div>
-          </div>
-          ))}
-        </section>
-
-        {/* Toolbar */}
-        <section className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex overflow-x-auto gap-2 pb-1 sm:pb-0">
-            {['All','Overdue','Soon','Completed'].map((filter, i)=> (
-              <button
-                key={filter} 
-                onClick={() => setActiveFilter(filter)}
-                className={`px-3 py-2 rounded-xl text-sm border transition whitespace-nowrap flex-shrink-0 ${
-                  activeFilter === filter 
-                    ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30' 
-                    : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:bg-white/[0.08]'
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-          <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none sm:w-80">
-            <input
-                className="w-full sm:w-80 rounded-xl bg-white/[0.06] border border-white/10 pl-9 pr-3 py-2 outline-none text-sm placeholder:text-zinc-500 focus:border-emerald-400/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-emerald-400/20"
-                placeholder="Search tasks..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10.5 15A4.5 4.5 0 1 1 10.5 6a4.5 4.5 0 0 1 0 9z"/></svg>
-            </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-3 py-2 text-sm hover:bg-indigo-500/25"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6z"/></svg>
-              Add Task
-            </button>
-          </div>
-        </section>
-
-        {/* Content Grid */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-          {/* Left: Tasks */}
-          <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            {/* Tasks */}
-            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03]">
-              <div className="px-4 lg:px-5 py-3 lg:py-4 border-b border-white/10 flex items-center justify-between">
-                <h2 className="text-base lg:text-lg font-semibold">
-                  {activeFilter === 'All' ? 'All Tasks' : activeFilter}
-                </h2>
-                <span className="text-xs text-zinc-400">
-                  {getFilteredTasks().length} tasks
-                </span>
-              </div>
-              <ul className="divide-y divide-white/10">
-                {getFilteredTasks().length === 0 ? (
-                  <li className="px-4 lg:px-5 py-6 lg:py-8 text-center text-zinc-400">
-                    {searchQuery ? 'No tasks match your search' : `No ${activeFilter.toLowerCase()} tasks`}
-                  </li>
-                ) : (
-                  getFilteredTasks().map((task) => (
-                    <TaskCard
-                      key={task._id}
-                      task={task}
-                      onComplete={handleTaskCompletion}
-                      onEdit={handleOpenTaskDetails}
-                      showDetails={true}
-                      variant="default"
-                    />
-                  ))
-                )}
-              </ul>
-            </div>
-
-            {/* Upcoming */}
-            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03]">
-              <div className="px-4 lg:px-5 py-3 lg:py-4 border-b border-white/10 flex items-center justify-between">
-                <h2 className="text-base lg:text-lg font-semibold">Upcoming (Next 7 days)</h2>
-                <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">View calendar</button>
-              </div>
-              <div className="p-4 lg:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-                {getUpcomingTasks().length === 0 ? (
-                  <div className="col-span-full text-center text-zinc-400 py-6 lg:py-8">
-                    No upcoming tasks this week! 🎉
-            </div>
-          ) : (
-                  getUpcomingTasks().map((task) => (
-              <TaskCard
-                key={task._id}
-                task={task}
-                      onComplete={handleTaskCompletion}
-                      onEdit={handleOpenTaskDetails}
-                      showDetails={false}
-                      variant="upcoming"
-              />
-            ))
-          )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Insights */}
-          <aside className="space-y-4 lg:space-y-6">
-            {/* Progress */}
-            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm lg:text-base font-semibold">This Week</h3>
-                <span className="text-xs text-zinc-400">Goal: {Math.max(20, stats.total)} tasks</span>
-              </div>
-              <div className="mt-3 lg:mt-4 grid grid-cols-3 gap-3 lg:gap-4">
-                {[
-                  {k:'Done',v:stats.completed},
-                  {k:'Active',v:stats.total},
-                  {k:'Overdue',v:stats.overdue}
-                ].map((m,i)=>(
-                  <div key={m.k} className="rounded-lg lg:rounded-xl border border-white/10 bg-[#111217] p-3 lg:p-4">
-                    <p className="text-xs text-zinc-400">{m.k}</p>
-                    <p className="mt-1 text-lg lg:text-2xl font-semibold">{m.v}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 lg:mt-4">
-                <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="text-zinc-400">Completion</span>
-                  <span className="text-zinc-300">
-                    {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500/60 transition-all duration-300" 
-                    style={{ width: `${stats.total > 0 ? (stats.completed / stats.total) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Lists */}
-            <div className="rounded-xl lg:rounded-2xl border border-white/10 bg-white/[0.03] p-4 lg:p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm lg:text-base font-semibold">Lists</h3>
-                <button className="text-xs rounded-lg px-2 py-1 bg-white/[0.06] border border-white/10 hover:bg-white/[0.08]">Manage</button>
-              </div>
-              <ul className="mt-3 space-y-2">
-                {(() => {
-                  // Group tasks by assignedTo or create "Unassigned" category
-                  const taskGroups = tasks.reduce((acc, task) => {
-                    const category = task.assignedTo || 'Unassigned'
-                    if (!acc[category]) {
-                      acc[category] = 0
-                    }
-                    acc[category]++
-                    return acc
-                  }, {})
-                  
-                  return Object.entries(taskGroups).length === 0 ? (
-                    <li className="px-3 py-2 text-center text-zinc-400 text-sm">
-                      No tasks yet
-                    </li>
-                  ) : (
-                    Object.entries(taskGroups).map(([name, count], i) => (
-                      <li key={name} className="flex items-center justify-between rounded-lg lg:rounded-xl bg-[#111217] px-3 py-2 border border-white/10">
-                        <div className="flex items-center gap-2 lg:gap-3">
-                          <span className="h-2 w-2 lg:h-2.5 lg:w-2.5 rounded-full bg-emerald-400/70"/>
-                          <p className="text-sm">{name}</p>
-                        </div>
-                        <span className="text-xs text-zinc-400">{count} active</span>
-                      </li>
-                    ))
-                  )
-                })()}
-              </ul>
-            </div>
-          </aside>
-        </section>
-      </main>
-
-      {/* Task Modal */}
-      {showModal && (
-        <TaskModal
-          key={editingTask ? `edit-${editingTask._id}` : 'create'}
-          task={editingTask}
-          onClose={handleCloseModal}
-          onSave={handleSaveTask}
-        />
-      )}
-      
-      {/* Settings Modal */}
-      {showSettings && (
-        <SettingsModal
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-
-      {/* Task Details Menu */}
-      <TaskDetailsMenu
-        key={selectedTask ? `details-${selectedTask._id}` : 'details'}
-        task={selectedTask}
-        isOpen={showTaskDetails}
-        onClose={handleCloseTaskDetails}
-        onTaskUpdated={handleTaskUpdated}
-        onTaskDeleted={handleTaskDeleted}
-      />
-    </div>
+    task.name.toLowerCase().includes(q) ||
+    (task.assignedTo || '').toLowerCase().includes(q) ||
+    (task.notes || '').toLowerCase().includes(q) ||
+    (task.tags || []).some((tag) => tag.toLowerCase().includes(q))
   )
 }
 
- 
+function SkeletonList() {
+  return (
+    <Card className="overflow-hidden" aria-busy="true" aria-label="Loading chores">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center gap-3 px-5 py-4 [&+div]:border-t [&+div]:border-line">
+          <div className="h-5 w-5 animate-pulse rounded-md bg-surface-2" />
+          <div className="grid flex-1 gap-2">
+            <div className="h-3.5 w-2/5 animate-pulse rounded bg-surface-2" />
+            <div className="h-3 w-3/5 animate-pulse rounded bg-surface-2" />
+          </div>
+          <div className="h-6 w-24 animate-pulse rounded-pill bg-surface-2" />
+        </div>
+      ))}
+    </Card>
+  )
+}
+
+export default function Dashboard() {
+  const { logout, user } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { taskId } = useParams()
+  const me = displayName(user?.username)
+  const searchRef = useRef(null)
+
+  const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [person, setPerson] = useState(null)
+  const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState({ ontrack: false, done: false })
+  const [held, setHeld] = useState({}) // taskId -> group it was in before being checked off
+  const [modal, setModal] = useState({ open: false, task: null })
+  const [toDelete, setToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState(null)
+  const holdTimers = useRef({})
+  const toastTimer = useRef(null)
+
+  const settingsOpen = location.pathname === '/settings'
+  const openTask = tasks.find((t) => t._id === taskId) || null
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setLoadError(null)
+    try {
+      setTasks(await getTasks())
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err)
+      setLoadError(err.response?.data?.error || 'Check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const timers = holdTimers.current
+    return () => {
+      Object.values(timers).forEach(clearTimeout)
+      clearTimeout(toastTimer.current)
+    }
+  }, [])
+
+  const showToast = useCallback((message, action) => {
+    clearTimeout(toastTimer.current)
+    setToast({ id: Date.now(), message, ...action })
+    toastTimer.current = setTimeout(() => setToast(null), action ? HOLD_MS : 2500)
+  }, [])
+
+  const replaceTask = useCallback((updated) => {
+    setTasks((prev) => prev.map((t) => (t._id === updated._id ? updated : t)))
+  }, [])
+
+  const release = useCallback((id) => {
+    clearTimeout(holdTimers.current[id])
+    delete holdTimers.current[id]
+    setHeld((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }, [])
+
+  const undoDone = useCallback(async (task) => {
+    try {
+      const updated = await updateTask({
+        id: task._id,
+        lastDone: task.previousLastDone || null,
+        lastCompleted: null,
+        lastCompletedBy: null,
+        previousLastDone: null,
+      })
+      release(task._id)
+      replaceTask(updated)
+      showToast(`“${task.name}” marked not done`)
+    } catch (err) {
+      console.error('Failed to undo completion:', err)
+      showToast('Couldn’t undo. Try again.')
+    }
+  }, [release, replaceTask, showToast])
+
+  const toggleDone = useCallback(async (task) => {
+    if (isDoneToday(task)) return undoDone(task)
+    const before = getTaskStatus(task).group
+    try {
+      const updated = await markTaskDone(task._id)
+      replaceTask(updated)
+      // Keep the row where it was for a moment so the check registers before it moves to Done.
+      setHeld((prev) => ({ ...prev, [task._id]: before }))
+      clearTimeout(holdTimers.current[task._id])
+      holdTimers.current[task._id] = setTimeout(() => release(task._id), HOLD_MS)
+      showToast(`Marked “${task.name}” done`, { actionLabel: 'Undo', onAction: () => undoDone(updated) })
+    } catch (err) {
+      console.error('Failed to mark task done:', err)
+      showToast('Couldn’t mark that done. Try again.')
+    }
+  }, [release, replaceTask, showToast, undoDone])
+
+  const togglePaused = async (task) => {
+    try {
+      const updated = await updateTask({ id: task._id, active: task.active === false })
+      replaceTask(updated)
+      showToast(updated.active === false ? `Paused “${task.name}”` : `Resumed “${task.name}”`)
+    } catch (err) {
+      console.error('Failed to pause task:', err)
+      showToast('Couldn’t update that chore. Try again.')
+    }
+  }
+
+  const confirmDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteTask(toDelete._id)
+      setTasks((prev) => prev.filter((t) => t._id !== toDelete._id))
+      showToast(`Deleted “${toDelete.name}”`)
+      setToDelete(null)
+      navigate('/')
+    } catch (err) {
+      console.error('Failed to delete task:', err)
+      showToast('Couldn’t delete that chore. Try again.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const saveTask = async (data) => {
+    if (modal.task) {
+      const updated = await updateTask({ id: modal.task._id, ...data })
+      replaceTask(updated)
+      showToast(`Saved “${updated.name}”`)
+    } else {
+      const created = await createTask(data)
+      setTasks((prev) => [...prev, created])
+      showToast(`Added “${created.name}”`)
+    }
+    setModal((m) => ({ ...m, open: false }))
+  }
+
+  const openNew = useCallback(() => setModal({ open: true, task: null }), [])
+  const openEdit = (task) => {
+    navigate('/')
+    setModal({ open: true, task })
+  }
+  const signOut = () => {
+    logout()
+    navigate('/', { replace: true })
+  }
+
+  // "/" focuses search, "n" adds a chore, when nothing else has focus or is open.
+  useEffect(() => {
+    const onKey = (event) => {
+      const tag = event.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable || event.metaKey || event.ctrlKey || event.altKey) return
+      if (modal.open || taskId || settingsOpen || toDelete) return
+      if (event.key === '/') { event.preventDefault(); searchRef.current?.focus() }
+      if (event.key === 'n' || event.key === 'N') { event.preventDefault(); openNew() }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [modal.open, taskId, settingsOpen, toDelete, openNew])
+
+  const today = new Date()
+  const withStatus = useMemo(() => tasks.map((task) => ({ task, status: getTaskStatus(task) })), [tasks])
+
+  const counts = {
+    overdue: withStatus.filter((x) => x.status.group === 'overdue').length,
+    soon: withStatus.filter((x) => x.status.group === 'soon').length,
+    done: withStatus.filter((x) => x.status.group === 'done').length,
+    mine: tasks.filter((t) => sameName(t.assignedTo, me)).length,
+  }
+
+  const people = useMemo(() => {
+    const names = []
+    const add = (name) => { if (name && !names.some((n) => sameName(n, name))) names.push(name) }
+    add(me)
+    tasks.forEach((t) => add(t.assignedTo?.trim()))
+    const stats = (name) => {
+      const mine = withStatus.filter((x) => (name ? sameName(x.task.assignedTo, name) : !x.task.assignedTo?.trim()))
+      return {
+        name,
+        isMe: Boolean(name) && sameName(name, me),
+        total: mine.length,
+        overdue: mine.filter((x) => x.status.group === 'overdue').length,
+        doneThisWeek: mine.filter((x) => {
+          const completed = toLocalDate(x.task.lastCompleted)
+          return completed && daysBetween(completed, new Date()) < DONE_WINDOW_DAYS
+        }).length,
+      }
+    }
+    const list = names.map(stats)
+    if (tasks.some((t) => !t.assignedTo?.trim())) list.push(stats(''))
+    return list
+  }, [tasks, withStatus, me])
+
+  const busiest = useMemo(() => {
+    const load = {}
+    withStatus.forEach(({ task, status }) => {
+      const who = task.assignedTo?.trim()
+      if (who && (status.group === 'overdue' || status.group === 'soon')) load[who] = (load[who] || 0) + 1
+    })
+    return Object.entries(load).sort((a, b) => b[1] - a[1])[0] || null
+  }, [withStatus])
+
+  const visible = withStatus.filter(({ task }) => {
+    if (person !== null && (person ? !sameName(task.assignedTo, person) : Boolean(task.assignedTo?.trim()))) return false
+    if (filter === 'mine' && !sameName(task.assignedTo, me)) return false
+    return matchesQuery(task, query)
+  })
+
+  const groups = GROUPS
+    .filter((g) => (filter === 'overdue' ? g.id === 'overdue' : filter === 'done' ? g.id === 'done' : true))
+    .map((g) => {
+      const items = visible
+        .filter(({ task, status }) => (held[task._id] || status.group) === g.id)
+        .sort((a, b) => compareTasks(a.task, b.task, today))
+      const collapsible = (g.id === 'ontrack' || g.id === 'done') && filter !== 'done'
+      return { ...g, items, collapsible, open: !collapsible || expanded[g.id] || Boolean(query.trim()) }
+    })
+    .filter((g) => g.items.length || g.id === 'overdue' || filter === 'done')
+
+  const dateLine = `${WEEKDAYS[today.getDay()]}, ${MONTHS[today.getMonth()]} ${today.getDate()}`
+
+  let headline
+  if (!tasks.length) headline = <>Let’s set up your chores.</>
+  else if (!counts.overdue && !counts.soon) headline = <>Everything is on track.</>
+  else headline = (
+    <>
+      {counts.overdue ? <span className="text-danger">{counts.overdue} overdue</span> : 'Nothing overdue'}
+      {counts.soon ? <>, <span className="text-warning">{counts.soon} due soon</span></> : null}.
+    </>
+  )
+  const subline = !tasks.length
+    ? 'Add the chores your home repeats and who usually does them.'
+    : busiest
+      ? `${sameName(busiest[0], me) ? 'You have the most on your plate' : `${busiest[0]} has the most on their plate`} (${plural(busiest[1], 'chore')}).`
+      : 'Nice work, everyone.'
+
+  const roommateNames = people.map((p) => p.name).filter(Boolean)
+
+  return (
+    <AppShell
+      homeName={user?.apartmentName || 'Your home'}
+      homeCode={user?.apartmentCode || ''}
+      userName={me}
+      search={query}
+      onSearchChange={setQuery}
+      searchRef={searchRef}
+      onAddTask={openNew}
+      onOpenSettings={() => navigate('/settings')}
+      onSignOut={signOut}
+    >
+      <main className="mx-auto max-w-[1200px] px-4 pt-7 pb-24 lg:px-8">
+        <section className="mb-5">
+          <p className="mb-1 text-[13px] text-muted">{dateLine}</p>
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-tight text-balance">{loading ? 'Loading your chores…' : headline}</h1>
+          {!loading && !loadError ? <p className="mt-1 text-muted">{subline}</p> : null}
+        </section>
+
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)] lg:gap-8">
+          <section className="min-w-0">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <Segmented
+                label="Filter chores"
+                value={filter}
+                onChange={(value) => {
+                  setFilter(value)
+                  setPerson(null)
+                }}
+                options={[
+                  { value: 'all', label: 'All', count: tasks.length },
+                  { value: 'mine', label: 'Mine', count: counts.mine },
+                  { value: 'overdue', label: 'Overdue', count: counts.overdue },
+                  { value: 'done', label: 'Done this week', count: counts.done },
+                ]}
+              />
+              {person !== null ? (
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface pr-1.5 pl-1 text-[13px] font-medium">
+                  <Avatar name={person} /> {person || 'Unassigned'}
+                  <button type="button" onClick={() => setPerson(null)} aria-label="Show everyone" className="grid h-6 w-6 place-items-center rounded-full text-subtle hover:bg-surface-2 hover:text-ink">×</button>
+                </span>
+              ) : null}
+            </div>
+
+            {loading ? <SkeletonList /> : loadError ? (
+              <Card className="px-5 py-7 text-center">
+                <p className="mb-1 text-[15px] font-medium">Couldn’t load your chores</p>
+                <p className="text-muted">{loadError}</p>
+                <Button variant="secondary" className="mt-3" onClick={load}><RefreshCw size={16} /> Try again</Button>
+              </Card>
+            ) : !tasks.length ? (
+              <Card className="px-5 py-7 text-center">
+                <p className="mb-1 text-[15px] font-medium">No chores yet</p>
+                <p className="text-muted">Add the first one and assign it to someone.</p>
+                <Button variant="primary" className="mt-3" onClick={openNew}><Plus size={16} /> Add task</Button>
+              </Card>
+            ) : !visible.length ? (
+              <Card className="px-5 py-7 text-center">
+                <p className="mb-1 text-[15px] font-medium">No chores match{query ? ` “${query}”` : ''}</p>
+                <p className="text-muted">Try another name, tag or word.</p>
+                <Button variant="secondary" className="mt-3" onClick={() => { setQuery(''); setPerson(null); setFilter('all') }}>Clear filters</Button>
+              </Card>
+            ) : (
+              <Card className="overflow-hidden">
+                {groups.map((group) => {
+                  const dot = { overdue: 'bg-danger', soon: 'bg-warning', ontrack: 'bg-subtle', done: 'bg-accent' }[group.id]
+                  const heading = (
+                    <>
+                      <i className={`h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
+                      {group.label} <span className="font-medium text-subtle tabular-nums">{group.items.length}</span>
+                    </>
+                  )
+                  return (
+                    <div key={group.id} className="[&+div]:border-t [&+div]:border-line">
+                      {group.collapsible ? (
+                        <button
+                          type="button"
+                          aria-expanded={group.open}
+                          onClick={() => setExpanded((e) => ({ ...e, [group.id]: !e[group.id] }))}
+                          className="group/h flex w-full items-center gap-2.5 px-5 pt-3.5 pb-2.5 text-left text-sm font-semibold"
+                        >
+                          {heading}
+                          <span className="ml-auto inline-flex items-center gap-1 text-[13px] font-medium text-subtle group-hover/h:text-ink">
+                            {group.open ? 'Hide' : 'Show'}
+                            <ChevronDown size={16} className={`transition-transform duration-200 ${group.open ? 'rotate-180' : ''}`} />
+                          </span>
+                        </button>
+                      ) : (
+                        <h2 className="flex items-center gap-2.5 px-5 pt-3.5 pb-2.5 text-sm font-semibold">{heading}</h2>
+                      )}
+                      {group.open ? (
+                        group.items.length ? (
+                          <ul className="m-0 list-none p-0 pb-1.5">
+                            {group.items.map(({ task, status }) => (
+                              <TaskRow
+                                key={task._id}
+                                task={task}
+                                status={status}
+                                group={held[task._id] || status.group}
+                                checked={isDoneToday(task)}
+                                me={me}
+                                onToggleDone={toggleDone}
+                                onOpen={(t) => navigate(`/tasks/${t._id}`)}
+                              />
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="px-5 pb-3.5 pl-16 text-[13px] text-subtle">{group.id === 'overdue' ? 'Nothing overdue. Nice.' : 'Nothing here right now.'}</p>
+                        )
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </Card>
+            )}
+          </section>
+
+          <aside className="grid min-w-0 gap-4 max-lg:order-first max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:gap-3">
+            <RoommatesPanel
+              people={people}
+              selected={person}
+              onSelect={(name) => {
+                setPerson(name)
+                setFilter('all')
+                setExpanded((e) => ({ ...e, ontrack: true }))
+              }}
+            />
+            <WeekStrip tasks={tasks} today={today} />
+          </aside>
+        </div>
+      </main>
+
+      <TaskDrawer
+        task={openTask}
+        me={me}
+        onClose={() => navigate('/')}
+        onToggleDone={toggleDone}
+        onEdit={openEdit}
+        onTogglePaused={togglePaused}
+        onDelete={setToDelete}
+        onTaskUpdated={replaceTask}
+      />
+
+      <TaskModal
+        open={modal.open}
+        task={modal.task}
+        me={me}
+        roommates={roommateNames}
+        onClose={() => setModal((m) => ({ ...m, open: false }))}
+        onSave={saveTask}
+      />
+
+      <SettingsSheet open={settingsOpen} onClose={() => navigate('/')} onSignOut={signOut} />
+
+      <ConfirmDialog
+        open={Boolean(toDelete)}
+        title={toDelete ? `Delete “${toDelete.name}”?` : ''}
+        message="This removes it for everyone in your home. You can’t undo this."
+        confirmLabel="Delete chore"
+        busy={deleting}
+        onCancel={() => setToDelete(null)}
+        onConfirm={confirmDelete}
+      />
+
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
+    </AppShell>
+  )
+}

@@ -80,3 +80,10 @@ export const markTaskDone = async (id) => {
   const response = await axios.post(`/api/tasks/${id}/done`)
   return response.data
 }
+
+
+// Apartment API
+export const updateApartmentName = async (apartmentName) => {
+  const response = await axios.put('/api/apartment/name', { apartmentName })
+  return response.data
+}
