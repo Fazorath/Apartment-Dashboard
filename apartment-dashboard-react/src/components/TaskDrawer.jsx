@@ -107,7 +107,7 @@ function DrawerContent({ task, me, titleId, onClose, onToggleDone, onEdit, onTog
             {task.assignedTo ? `${task.assignedTo}${isMine ? ' (you)' : ''}` : <span className="text-subtle">Unassigned</span>}
           </dd>
           <dt className="text-muted">Priority</dt>
-          <dd className="m-0">{priority === 'normal' ? 'Normal' : <PriorityBadge priority={priority} />}</dd>
+          <dd className="m-0"><PriorityBadge priority={priority} showNormal /></dd>
           <dt className="text-muted">Repeats</dt>
           <dd className="m-0">{frequencyText(task.frequencyDays)}</dd>
           <dt className="text-muted">Last done</dt>

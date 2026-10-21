@@ -8,7 +8,7 @@ import Switch from './ui/Switch'
 import Segmented from './ui/Segmented'
 import ConfirmDialog from './ui/ConfirmDialog'
 import { Field, Input, Textarea } from './ui/Field'
-import { addDays, daysBetween, PRIORITY_OPTIONS, toISODate, toLocalDate, toPriority } from '../lib/taskStatus'
+import { addDays, daysBetween, DEFAULT_PRIORITY, PRIORITY_OPTIONS, toISODate, toLocalDate, toPriority } from '../lib/taskStatus'
 import { sameName } from '../lib/people'
 
 const FREQUENCY_PRESETS = [
@@ -28,7 +28,7 @@ const LAST_DONE_OPTIONS = [
 
 const initialForm = (task, me) => {
   if (!task) {
-    return { name: '', assignedTo: me, newPerson: false, frequencyDays: 7, lastDoneChoice: 'today', lastDoneDate: toISODate(new Date()), notes: '', tags: [], pinned: false, priority: 'normal' }
+    return { name: '', assignedTo: me, newPerson: false, frequencyDays: 7, lastDoneChoice: 'today', lastDoneDate: toISODate(new Date()), notes: '', tags: [], pinned: false, priority: DEFAULT_PRIORITY }
   }
   const lastDone = toLocalDate(task.lastDone)
   const since = lastDone ? daysBetween(lastDone, new Date()) : null

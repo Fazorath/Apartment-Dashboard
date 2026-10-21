@@ -103,14 +103,16 @@ export const frequencyText = (days) => {
   return `Every ${days} days`
 }
 
+// Lowest to highest, the order the task modal shows them.
 export const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'High' },
 ]
+export const DEFAULT_PRIORITY = 'normal'
 
-// A task's priority, or 'normal' for chores saved before priorities existed.
-export const toPriority = (value) => (PRIORITY_OPTIONS.some((option) => option.value === value) ? value : 'normal')
+// A task's priority, or the default for chores saved before priorities existed.
+export const toPriority = (value) => (PRIORITY_OPTIONS.some((option) => option.value === value) ? value : DEFAULT_PRIORITY)
 
 const byPinned = (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
 const byName = (a, b) => a.name.localeCompare(b.name)
@@ -122,10 +124,9 @@ const byAssignee = (a, b) => Number(!assignee(a)) - Number(!assignee(b)) || assi
 // Compared by calendar day, newest first; never-done chores go last.
 const lastDoneTime = (task) => toLocalDate(task.lastDone)?.getTime() ?? -Infinity
 const byRecentlyDone = (a, b) => lastDoneTime(b) - lastDoneTime(a)
-// High first; a missing or unknown priority counts as normal.
-const PRIORITY_RANK = { high: 0, normal: 1, low: 2 }
-const priorityRank = (task) => PRIORITY_RANK[toPriority(task.priority)]
-const byPriority = (a, b) => priorityRank(a) - priorityRank(b)
+// Highest priority first; a missing or unknown priority counts as the default.
+const priorityRank = (task) => PRIORITY_OPTIONS.findIndex((option) => option.value === toPriority(task.priority))
+const byPriority = (a, b) => priorityRank(b) - priorityRank(a)
 
 // Each sort key's rules after pinned-first, which every key shares.
 const COMPARATORS = {

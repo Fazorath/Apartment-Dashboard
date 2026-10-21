@@ -12,6 +12,8 @@ const EDGE = {
 
 export default function TaskRow({ task, status, group, checked, me, onToggleDone, onOpen }) {
   const priority = toPriority(task.priority)
+  // Low-priority chores read calmer than the rest.
+  const nameClass = checked ? 'text-muted line-through decoration-subtle' : priority === 'low' ? 'text-muted' : ''
   const by = task.lastCompletedBy && task.lastDone ? ` by ${sameName(task.lastCompletedBy, me) ? 'you' : task.lastCompletedBy}` : ''
   const meta = task.active === false
     ? `Paused · ${frequencyText(task.frequencyDays).toLowerCase()}`
@@ -45,7 +47,7 @@ export default function TaskRow({ task, status, group, checked, me, onToggleDone
           className="flex w-full min-w-0 items-center gap-1.5 text-left text-[15px] leading-[22px] font-medium after:absolute after:inset-0 after:content-['']"
         >
           {task.pinned ? <Pin size={14} className="flex-none text-muted" aria-label="Pinned" /> : null}
-          <span className={`truncate ${checked ? 'text-muted line-through decoration-subtle' : priority === 'low' ? 'text-muted' : ''}`}>{task.name}</span>
+          <span className={`truncate ${nameClass}`}>{task.name}</span>
           <PriorityBadge priority={priority} />
         </button>
         <p className="truncate text-[13px] leading-[18px] text-muted">
