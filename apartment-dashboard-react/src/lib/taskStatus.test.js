@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { compareTasks } from './taskStatus'
 
-const TODAY = new Date(2026, 9, 20)
+const TODAY = new Date(2026, 9, 20) // Oct 20, local time
 
 const chore = (name, { frequencyDays = 7, lastDone = null, pinned = false, active = true } = {}) => ({
   name,
@@ -42,12 +42,12 @@ describe('chore ordering', () => {
 
   it('puts never-done chores first, in name order', () => {
     const tasks = [
-      chore('Mop floors', { lastDone: '2026-09-01' }), // very overdue
-      chore('Clean oven'),
+      chore('Air filter', { lastDone: '2026-09-01' }), // very overdue
+      chore('Mop floors'),
       chore('Defrost freezer'),
-      chore('Air out rugs'),
+      chore('Clean oven'),
     ]
-    expect(order(tasks)).toEqual(['Air out rugs', 'Clean oven', 'Defrost freezer', 'Mop floors'])
+    expect(order(tasks)).toEqual(['Clean oven', 'Defrost freezer', 'Mop floors', 'Air filter'])
   })
 
   it('puts paused chores last, in name order', () => {
@@ -61,10 +61,10 @@ describe('chore ordering', () => {
 
   it('keeps pinned chores ordered by urgency among themselves', () => {
     const tasks = [
-      chore('Pay rent', { frequencyDays: 30, lastDone: '2026-10-01', pinned: true }),
-      chore('Feed cat', { frequencyDays: 1, lastDone: '2026-10-18', pinned: true }),
-      chore('Clean oven'),
+      chore('Clean filter', { frequencyDays: 30, lastDone: '2026-10-01', pinned: true }), // due in 11 days
+      chore('Feed cat', { frequencyDays: 1, lastDone: '2026-10-18', pinned: true }), // 1 day overdue
+      chore('Air out rugs'),
     ]
-    expect(order(tasks)).toEqual(['Feed cat', 'Pay rent', 'Clean oven'])
+    expect(order(tasks)).toEqual(['Feed cat', 'Clean filter', 'Air out rugs'])
   })
 })
