@@ -103,8 +103,42 @@ export const frequencyText = (days) => {
   return `Every ${days} days`
 }
 
-// Pinned first, then most urgent, then alphabetical.
-export const compareTasks = (a, b, today = new Date()) =>
-  (Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))) ||
-  (getTaskStatus(a, today).daysUntilDue - getTaskStatus(b, today).daysUntilDue) ||
-  a.name.localeCompare(b.name)
+const byPinned = (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
+const byName = (a, b) => a.name.localeCompare(b.name)
+// Never-done chores compare as -Infinity, so two of them give NaN and fall through to the next rule.
+const byUrgency = (today) => (a, b) => getTaskStatus(a, today).daysUntilDue - getTaskStatus(b, today).daysUntilDue
+const assignee = (task) => (task.assignedTo || '').trim().toLowerCase()
+// Unassigned chores go last.
+const byAssignee = (a, b) => Number(!assignee(a)) - Number(!assignee(b)) || assignee(a).localeCompare(assignee(b))
+// Compared by calendar day, newest first; never-done chores go last.
+const lastDoneTime = (task) => toLocalDate(task.lastDone)?.getTime() ?? -Infinity
+const byRecentlyDone = (a, b) => lastDoneTime(b) - lastDoneTime(a)
+
+// Each sort key's rules after pinned-first, which every key shares.
+const COMPARATORS = {
+  due: (today) => [byUrgency(today), byName],
+  name: (today) => [byName, byUrgency(today)],
+  assignee: (today) => [byAssignee, byName, byUrgency(today)],
+  recent: () => [byRecentlyDone, byName],
+}
+
+export const SORT_OPTIONS = [
+  { value: 'due', label: 'Due date' },
+  { value: 'name', label: 'Name' },
+  { value: 'assignee', label: 'Assignee' },
+  { value: 'recent', label: 'Recently done' },
+]
+
+// A stored or otherwise untrusted sort key, or 'due' when it is missing or unknown.
+export const toSortKey = (value) => (typeof value === 'string' && Object.hasOwn(COMPARATORS, value) ? value : 'due')
+
+export const sortTasks = (tasks, sortKey, today = new Date()) => {
+  const rules = [byPinned, ...COMPARATORS[toSortKey(sortKey)](today)]
+  return [...tasks].sort((a, b) => {
+    for (const rule of rules) {
+      const result = rule(a, b)
+      if (result) return result
+    }
+    return 0
+  })
+}

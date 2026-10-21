@@ -16,8 +16,9 @@ import Segmented from './ui/Segmented'
 import Avatar from './ui/Avatar'
 import Toast from './ui/Toast'
 import ConfirmDialog from './ui/ConfirmDialog'
-import { compareTasks, daysBetween, DONE_WINDOW_DAYS, getTaskStatus, GROUPS, isDoneToday, plural, toLocalDate } from '../lib/taskStatus'
+import { daysBetween, DONE_WINDOW_DAYS, getTaskStatus, GROUPS, isDoneToday, plural, SORT_OPTIONS, sortTasks, toLocalDate } from '../lib/taskStatus'
 import { displayName, sameName } from '../lib/people'
+import useChoreSort from '../hooks/useChoreSort'
 
 const HOLD_MS = 5000
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -65,6 +66,7 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all')
   const [person, setPerson] = useState(null)
   const [query, setQuery] = useState('')
+  const [sortKey, setSortKey] = useChoreSort()
   const [expanded, setExpanded] = useState({ ontrack: false, done: false })
   const [held, setHeld] = useState({}) // taskId -> group it was in before being checked off
   const [modal, setModal] = useState({ open: false, task: null })
@@ -269,9 +271,9 @@ export default function Dashboard() {
   const groups = GROUPS
     .filter((g) => (filter === 'overdue' ? g.id === 'overdue' : filter === 'done' ? g.id === 'done' : true))
     .map((g) => {
-      const items = visible
-        .filter(({ task, status }) => (held[task._id] || status.group) === g.id)
-        .sort((a, b) => compareTasks(a.task, b.task, today))
+      const inGroup = visible.filter(({ task, status }) => (held[task._id] || status.group) === g.id)
+      const statusOf = new Map(inGroup.map(({ task, status }) => [task, status]))
+      const items = sortTasks(inGroup.map(({ task }) => task), sortKey, today).map((task) => ({ task, status: statusOf.get(task) }))
       const collapsible = (g.id === 'ontrack' || g.id === 'done') && filter !== 'done'
       return { ...g, items, collapsible, open: !collapsible || expanded[g.id] || Boolean(query.trim()) }
     })
@@ -338,6 +340,19 @@ export default function Dashboard() {
                   <button type="button" onClick={() => setPerson(null)} aria-label="Show everyone" className="grid h-6 w-6 place-items-center rounded-full text-subtle hover:bg-surface-2 hover:text-ink">×</button>
                 </span>
               ) : null}
+              <label className="inline-flex items-center gap-2 text-[13px] text-muted">
+                Sort by
+                <span className="relative inline-flex">
+                  <select
+                    value={sortKey}
+                    onChange={(event) => setSortKey(event.target.value)}
+                    className="h-9 appearance-none rounded-ctl border border-line bg-surface-2 pr-8 pl-3 text-sm font-medium text-ink transition-[border-color,background-color] duration-150 hover:border-subtle focus:border-accent focus:bg-surface"
+                  >
+                    {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                  <ChevronDown size={16} aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-subtle" />
+                </span>
+              </label>
             </div>
 
             {loading ? <SkeletonList /> : loadError ? (
