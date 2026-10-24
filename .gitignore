@@ -29,6 +29,5 @@ pnpm-debug.log*
 # Coverage
 coverage/
 
-
 # Secret scan output
 gitleaks-report.json
