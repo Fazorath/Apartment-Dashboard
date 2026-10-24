@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BadgeCheck, House, Loader2, MailX } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
+import Button from './ui/Button'
 import { verifyEmail } from '../services/api'
 
 // Opened from the link in a verification email, signed in or not.
 export default function VerifyEmail() {
   const [params] = useSearchParams()
+  const navigate = useNavigate()
   const token = params.get('token') || ''
   const { user, setEmailStatus } = useAuth()
   const [result, setResult] = useState({ state: 'pending', message: '' })
@@ -48,9 +50,9 @@ export default function VerifyEmail() {
             </p>
           )}
 
-          <Link to="/" className="inline-flex h-11 items-center justify-center rounded-ctl bg-accent px-[18px] text-[15px] font-medium text-on-accent hover:brightness-105">
+          <Button variant="primary" size="lg" onClick={() => navigate('/', { replace: true })}>
             {user ? 'Back to chores' : 'Go to sign in'}
-          </Link>
+          </Button>
         </div>
       </main>
     </div>

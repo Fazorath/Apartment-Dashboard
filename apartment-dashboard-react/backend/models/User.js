@@ -26,7 +26,8 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   emailVerificationTokenHash: {
-    type: String
+    type: String,
+    index: { sparse: true }
   },
   emailVerificationExpires: {
     type: Date

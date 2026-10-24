@@ -3,6 +3,9 @@ import { send } from './mailer.js'
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000
 
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch])
+
 // Only this hash is stored, so a database leak doesn't hand out working links
 export const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex')
 
@@ -46,5 +49,3 @@ export const verifyEmailToken = async (User, token) => {
   await user.save()
   return { ok: true, user }
 }
-
-const escapeHtml =(value) => String(value).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch])

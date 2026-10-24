@@ -18,6 +18,8 @@ let smtpTransport
 const pickTransport = () => {
   if (process.env.NODE_ENV === 'test') return 'memory'
   if (process.env.SMTP_HOST) return 'smtp'
+  // Logging working links in production would leak them, so refuse instead
+  if (process.env.NODE_ENV === 'production') throw new Error('SMTP_HOST is not set; cannot send email in production')
   return 'console'
 }
 
@@ -47,5 +49,3 @@ export const send = async ({ to, subject, text, html }) => {
       console.log(`📧 Email to ${to}\n   Subject: ${subject}\n\n${text}\n`)
   }
 }
-
-export default { send }

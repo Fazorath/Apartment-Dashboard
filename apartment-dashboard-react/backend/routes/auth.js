@@ -22,6 +22,20 @@ const trySendVerificationEmail = async (user) => {
   }
 }
 
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isEmail = (value) => typeof value === 'string' && EMAIL_FORMAT.test(value.trim())
+
+// Every route that sends a verification email shares this budget, keyed by
+// account, so one roommate can't flood an inbox by resending or switching addresses
+const verificationEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  keyGenerator: (req) => String(req.user._id),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many verification emails. Try again in a few minutes.' }
+})
+
 // Register
 router.post('/register', validateApartmentCode, async (req, res) => {
   try {
@@ -30,8 +44,12 @@ router.post('/register', validateApartmentCode, async (req, res) => {
     // Validation
     if (!username || !password || !apartmentCode) {
       return res.status(400).json({ 
-        error: 'Username, password, and apartment code are required' 
+        error: 'Username, password, and apartment code are required'
       })
+    }
+
+    if (email && !isEmail(email)) {
+      return res.status(400).json({ error: 'Enter a valid email address' })
     }
 
     const passwordCheck = checkPassword(password, { username })
@@ -214,8 +232,12 @@ router.post('/create-apartment', validateApartmentCode, checkApartmentCodeAvaila
     // Validation
     if (!username || !password || !apartmentCode || !apartmentName) {
       return res.status(400).json({ 
-        error: 'Username, password, apartment code, and apartment name are required' 
+        error: 'Username, password, apartment code, and apartment name are required'
       })
+    }
+
+    if (email && !isEmail(email)) {
+      return res.status(400).json({ error: 'Enter a valid email address' })
     }
 
     const passwordCheck = checkPassword(password, { username })
@@ -305,15 +327,13 @@ router.get('/generate-apartment-code', async (req, res) => {
   }
 })
 
-const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 // Add or change email: the new address starts unverified and gets a fresh link
-router.put('/email', authenticateToken, async (req, res) => {
+router.put('/email', authenticateToken, verificationEmailLimiter, async (req, res) => {
   try {
-    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-    if (!EMAIL_FORMAT.test(email)) {
+    if (!isEmail(req.body.email)) {
       return res.status(400).json({ error: 'Enter a valid email address' })
     }
+    const email = req.body.email.trim().toLowerCase()
 
     const User = await getUserModel()
     const user = await User.findById(req.user._id)
@@ -321,7 +341,8 @@ router.put('/email', authenticateToken, async (req, res) => {
     if (user.email !== email) {
       user.email = email
       user.emailVerified = false
-      await sendVerificationEmail(user)
+      await user.save()
+      await trySendVerificationEmail(user)
     }
 
     res.json({
@@ -334,18 +355,8 @@ router.put('/email', authenticateToken, async (req, res) => {
   }
 })
 
-// Keyed by account, so one roommate can't flood an inbox from many IPs
-const sendVerificationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 3,
-  keyGenerator: (req) => String(req.user._id),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { error: 'Too many verification emails. Try again in a few minutes.' }
-})
-
 // Resend the verification email
-router.post('/send-verification', authenticateToken, sendVerificationLimiter, async (req, res) => {
+router.post('/send-verification', authenticateToken, verificationEmailLimiter, async (req, res) => {
   try {
     const User = await getUserModel()
     const user = await User.findById(req.user._id)

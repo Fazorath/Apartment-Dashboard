@@ -142,6 +142,25 @@ describe('email verification', () => {
       expect(statuses).toEqual([200, 200, 200, 429])
       expect(outbox).toHaveLength(3)
     })
+
+    it('counts email changes against the same limit, so switching addresses can’t flood an inbox', async () => {
+      const signup = await register({ username: nextUsername() })
+
+      const statuses = []
+      for (let i = 0; i < 4; i++) {
+        statuses.push((await changeEmail(signup.body.token, i % 2 ? 'ping@example.com' : 'pong@example.com')).status)
+      }
+
+      expect(statuses).toEqual([200, 200, 200, 429])
+      expect(outbox).toHaveLength(3)
+    })
+  })
+
+  it('rejects signing up with an email that is not an address', async () => {
+    const res = await register({ username: nextUsername(), email: 'nope' })
+
+    expect(res.status).toBe(400)
+    expect(outbox).toHaveLength(0)
   })
 
   it('rejects an unknown or missing token', async () => {
