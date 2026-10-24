@@ -78,14 +78,8 @@ taskSchema.pre('save', function(next) {
   if (!Array.isArray(this.tags)) {
     this.tags = []
   }
-  
-  console.log('Pre-save: tags =', this.tags) // Debug log
-  next()
-})
 
-// Debug after save
-taskSchema.post('save', function(doc) {
-  console.log('Post-save: tags =', doc.tags) // Debug log
+  next()
 })
 
 // Index for better query performance

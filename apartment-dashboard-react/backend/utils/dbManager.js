@@ -33,10 +33,7 @@ class DatabaseManager {
       const dbName = `apartment_${normalizedCode.toLowerCase()}`
       const uri = `${this.baseUri}/${dbName}`
       
-      const connection = await mongoose.createConnection(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      })
+      const connection = await mongoose.createConnection(uri)
 
       // Wait for connection to be ready
       await new Promise((resolve, reject) => {
@@ -70,10 +67,7 @@ class DatabaseManager {
 
     try {
       const uri = `${this.baseUri}/apartment-dashboard`
-      this.mainConnection = await mongoose.createConnection(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      })
+      this.mainConnection = await mongoose.createConnection(uri)
       
       console.log('✅ Connected to main apartment dashboard database')
       return this.mainConnection

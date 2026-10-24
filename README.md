@@ -162,7 +162,6 @@ FRONTEND_URL=http://localhost:5173
 
 ### 🔧 Known Issues
 - "Forgot Password?" link is currently non-functional
-- MongoDB driver deprecation warnings (cosmetic only)
 
 ---
 
