@@ -75,7 +75,7 @@ export default function AppShell({ homeName, homeCode, userName, search, onSearc
           </div>
 
           {showSearch ? (
-            <div className={`relative ml-auto max-w-[360px] flex-1 ${searchOpen ? 'max-sm:absolute max-sm:inset-x-4 max-sm:top-3 max-sm:z-10 max-sm:ml-0 max-sm:max-w-none' : 'max-sm:hidden'}`}>
+            <div className={`relative ml-auto min-w-0 max-w-[360px] flex-1 sm:max-lg:max-w-[260px] ${searchOpen ? 'max-sm:absolute max-sm:inset-x-4 max-sm:top-3 max-sm:z-10 max-sm:ml-0 max-sm:max-w-none' : 'max-sm:hidden'}`}>
               <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle" />
               <label htmlFor="task-search" className="sr-only">Search chores</label>
               <input

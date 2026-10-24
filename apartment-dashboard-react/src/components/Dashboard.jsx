@@ -428,7 +428,7 @@ export default function Dashboard() {
             )}
           </section>
 
-          <aside className="grid min-w-0 gap-4 max-lg:order-first max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:gap-3">
+          <aside className="grid min-w-0 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:gap-3">
             <RoommatesPanel
               people={people}
               selected={person}
