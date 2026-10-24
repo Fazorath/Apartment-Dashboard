@@ -4,6 +4,7 @@ import useAuth from '../hooks/useAuth'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
+import { checkPassword, PASSWORD_HINT } from '../../backend/utils/passwordPolicy.js'
 
 const MODES = [
   { value: 'signin', label: 'Sign in' },
@@ -13,11 +14,19 @@ const MODES = [
 
 const SUBMIT_LABEL = { signin: 'Sign in', join: 'Join home', start: 'Start home' }
 
+// Live hint for a new password, from the same policy the server applies.
+const passwordHint = (password, username) => {
+  if (!password) return PASSWORD_HINT
+  const { ok, reasons } = checkPassword(password, { username })
+  return ok ? 'Looks good.' : reasons.join(' ')
+}
+
 const Login = () => {
   const [mode, setMode] = useState('signin')
   const [formData, setFormData] = useState({ username: '', password: '', apartmentCode: '', apartmentName: '', email: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [errorReasons, setErrorReasons] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
 
@@ -27,6 +36,7 @@ const Login = () => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setErrorReasons([])
     try {
       const { username, password, apartmentCode, apartmentName, email } = formData
       const result = mode === 'signin'
@@ -35,7 +45,10 @@ const Login = () => {
           ? await createApartment(username, password, apartmentCode, apartmentName, email)
           : await register(username, password, apartmentCode, email)
       // On success AuthContext sets the user and App swaps in the dashboard.
-      if (!result.success) setError(result.error)
+      if (!result.success) {
+        setError(result.error)
+        setErrorReasons(result.reasons ?? [])
+      }
     } catch (err) {
       console.error('Login error:', err)
       setError('Something went wrong. Check your connection and try again.')
@@ -57,6 +70,7 @@ const Login = () => {
   const switchMode = (next) => {
     setMode(next)
     setError('')
+    setErrorReasons([])
   }
 
   return (
@@ -83,7 +97,7 @@ const Login = () => {
             <Input id="login-username" name="username" value={formData.username} onChange={handleChange} autoComplete="username" autoCapitalize="none" required />
           </Field>
 
-          <Field label="Password" htmlFor="login-password" hint={mode === 'signin' ? null : 'At least 6 characters.'}>
+          <Field label="Password" htmlFor="login-password" hint={mode === 'signin' ? null : passwordHint(formData.password, formData.username)}>
             <div className="relative">
               <Input
                 id="login-password"
@@ -129,7 +143,16 @@ const Login = () => {
             </Field>
           )}
 
-          {error ? <p className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">{error}</p> : null}
+          {error ? (
+            <div className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">
+              <p>{error}</p>
+              {errorReasons.length ? (
+                <ul className="mt-1 list-disc pl-5">
+                  {errorReasons.map((reason) => <li key={reason}>{reason}</li>)}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <Button type="submit" variant="primary" size="lg" loading={loading}>{SUBMIT_LABEL[mode]}</Button>
         </form>

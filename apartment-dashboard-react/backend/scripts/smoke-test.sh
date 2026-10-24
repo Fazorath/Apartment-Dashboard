@@ -17,7 +17,7 @@ curl -s "$BASE_URL/api/health" | jq . || true
 
 STAMP=$(date +%s)
 USERNAME="smoketest_$STAMP"
-PASSWORD="secret123"
+PASSWORD="smoke-test-kettle-42"
 EMAIL="smoketest+$STAMP@example.com"
 
 echo "\n==> Register user ($USERNAME)"
