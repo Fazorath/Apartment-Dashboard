@@ -101,6 +101,27 @@ describe('auth API', () => {
       expect(res.body.token).toBeUndefined()
     })
 
+    it('rejects a password that is not text with a 400, not a crash', async () => {
+      const res = await register({ username: 'numeric', password: 12345678901, apartmentCode: APARTMENT_CODE })
+
+      expect(res.status).toBe(400)
+      expect(res.body.reasons).toEqual(['Password must be text.'])
+    })
+
+    it('rejects creating an admin with a weak password', async () => {
+      const User = await getUserModel()
+      await User.create({ username: 'boss', password: STRONG_PASSWORD, apartmentCode: 'ADMIN', apartmentName: 'Admin Panel', isAdmin: true })
+      const session = await login({ username: 'boss', password: STRONG_PASSWORD })
+
+      const res = await request(app)
+        .post('/api/admin/create-admin')
+        .set('Authorization', `Bearer ${session.body.token}`)
+        .send({ username: 'newboss', password: 'short' })
+
+      expect(res.status).toBe(400)
+      expect(res.body.reasons).toEqual(['Use at least 10 characters.'])
+    })
+
     it('still lets existing users log in with an older, shorter password', async () => {
       // Seeded through the model: the API no longer accepts a password this short
       const User = await getUserModel()

@@ -38,4 +38,10 @@ describe('password policy', () => {
   it('treats a missing password as too short', () => {
     expect(checkPassword(undefined).reasons).toEqual(['Use at least 10 characters.'])
   })
+
+  it('rejects a password that is not text instead of throwing', () => {
+    expect(checkPassword(12345678901, { username: 'sam' })).toEqual({ ok: false, reasons: ['Password must be text.'] })
+    expect(checkPassword(null).ok).toBe(false)
+    expect(checkPassword('maple-street-kettle', { username: 42 }).ok).toBe(true)
+  })
 })
