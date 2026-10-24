@@ -1,14 +1,26 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import { getUserModel } from '../models/User.js'
 import {
+  authenticateToken,
   generateToken,
   validateApartmentCode,
   checkApartmentCodeAvailability,
   generateApartmentCode
 } from '../middleware/auth.js'
 import { checkPassword } from '../utils/passwordPolicy.js'
+import { sendVerificationEmail, verifyEmailToken } from '../utils/emailVerification.js'
 
 const router = express.Router()
+
+// A mail outage shouldn't block sign-up; the roommate can resend from settings
+const trySendVerificationEmail = async (user) => {
+  try {
+    await sendVerificationEmail(user)
+  } catch (error) {
+    console.error('Verification email error:', error)
+  }
+}
 
 // Register
 router.post('/register', validateApartmentCode, async (req, res) => {
@@ -73,6 +85,7 @@ router.post('/register', validateApartmentCode, async (req, res) => {
     })
 
     await user.save()
+    if (user.email) await trySendVerificationEmail(user)
 
     // Generate token
     const token = generateToken(user._id)
@@ -85,6 +98,7 @@ router.post('/register', validateApartmentCode, async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        emailVerified: user.emailVerified,
         apartmentCode: user.apartmentCode,
         apartmentName: user.apartmentName,
         isAdmin: user.isAdmin
@@ -142,6 +156,7 @@ router.post('/login', async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        emailVerified: user.emailVerified,
         apartmentCode: user.apartmentCode,
         apartmentName: user.apartmentName,
         isAdmin: user.isAdmin
@@ -179,6 +194,7 @@ router.get('/me', async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        emailVerified: user.emailVerified,
         apartmentCode: user.apartmentCode,
         apartmentName: user.apartmentName,
         lastLogin: user.lastLogin
@@ -234,6 +250,7 @@ router.post('/create-apartment', validateApartmentCode, checkApartmentCodeAvaila
     })
 
     await user.save()
+    if (user.email) await trySendVerificationEmail(user)
 
     // Generate token
     const token = generateToken(user._id)
@@ -246,6 +263,7 @@ router.post('/create-apartment', validateApartmentCode, checkApartmentCodeAvaila
         id: user._id,
         username: user.username,
         email: user.email,
+        emailVerified: user.emailVerified,
         apartmentCode: user.apartmentCode,
         apartmentName: user.apartmentName,
         isAdmin: user.isAdmin
@@ -284,6 +302,87 @@ router.get('/generate-apartment-code', async (req, res) => {
   } catch (error) {
     console.error('Generate apartment code error:', error)
     res.status(500).json({ error: 'Failed to generate apartment code' })
+  }
+})
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Add or change email: the new address starts unverified and gets a fresh link
+router.put('/email', authenticateToken, async (req, res) => {
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+    if (!EMAIL_FORMAT.test(email)) {
+      return res.status(400).json({ error: 'Enter a valid email address' })
+    }
+
+    const User = await getUserModel()
+    const user = await User.findById(req.user._id)
+
+    if (user.email !== email) {
+      user.email = email
+      user.emailVerified = false
+      await sendVerificationEmail(user)
+    }
+
+    res.json({
+      success: true,
+      user: { email: user.email, emailVerified: user.emailVerified }
+    })
+  } catch (error) {
+    console.error('Update email error:', error)
+    res.status(500).json({ error: 'Failed to update email' })
+  }
+})
+
+// Keyed by account, so one roommate can't flood an inbox from many IPs
+const sendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  keyGenerator: (req) => String(req.user._id),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many verification emails. Try again in a few minutes.' }
+})
+
+// Resend the verification email
+router.post('/send-verification', authenticateToken, sendVerificationLimiter, async (req, res) => {
+  try {
+    const User = await getUserModel()
+    const user = await User.findById(req.user._id)
+
+    if (!user.email) {
+      return res.status(400).json({ error: 'Add an email address first' })
+    }
+    if (user.emailVerified) {
+      return res.status(400).json({ error: 'Your email is already verified' })
+    }
+
+    await sendVerificationEmail(user)
+    res.json({ success: true, message: 'Verification email sent' })
+  } catch (error) {
+    console.error('Send verification error:', error)
+    res.status(500).json({ error: 'Failed to send verification email' })
+  }
+})
+
+const VERIFY_ERRORS = {
+  invalid: 'This verification link is invalid or has already been used.',
+  expired: 'This verification link has expired. Send a new one from Settings.'
+}
+
+// Verify email (public: the link may be opened on a device that isn't signed in)
+router.post('/verify-email', async (req, res) => {
+  try {
+    const User = await getUserModel()
+    const result = await verifyEmailToken(User, req.body.token)
+    if (!result.ok) {
+      return res.status(400).json({ error: VERIFY_ERRORS[result.reason], reason: result.reason })
+    }
+
+    res.json({ success: true, message: 'Email verified', email: result.user.email })
+  } catch (error) {
+    console.error('Verify email error:', error)
+    res.status(500).json({ error: 'Failed to verify email' })
   }
 })
 

@@ -87,3 +87,19 @@ export const updateApartmentName = async (apartmentName) => {
   const response = await axios.put('/api/apartment/name', { apartmentName })
   return response.data
 }
+
+// Email verification API
+export const updateEmail = async (email) => {
+  const response = await axios.put('/api/auth/email', { email })
+  return response.data
+}
+
+export const resendVerificationEmail = async () => {
+  const response = await axios.post('/api/auth/send-verification')
+  return response.data
+}
+
+export const verifyEmail = async (token) => {
+  const response = await axios.post('/api/auth/verify-email', { token })
+  return response.data
+}
