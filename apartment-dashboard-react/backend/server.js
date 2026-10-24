@@ -68,8 +68,8 @@ app.get('/api/health', (req, res) => {
   })
 })
 
-// Error handling middleware
-app.use((err, req, res, next) => {
+// Error handling middleware (Express needs all four args to treat it as one)
+app.use((err, req, res, _next) => {
   console.error('Error:', err)
   res.status(500).json({ 
     error: 'Internal server error',

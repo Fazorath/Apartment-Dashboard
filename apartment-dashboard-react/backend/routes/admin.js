@@ -100,7 +100,7 @@ router.get('/apartment/:code', async (req, res) => {
     try {
       const apartmentModels = await dbManager.getApartmentModels(apartmentCode)
       tasks = await apartmentModels.Task.find({})
-    } catch (error) {
+    } catch {
       console.log(`No tasks found for apartment ${apartmentCode}`)
     }
 

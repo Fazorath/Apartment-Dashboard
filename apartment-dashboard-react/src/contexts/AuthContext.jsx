@@ -1,15 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
-
-const AuthContext = createContext()
-
-export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
+import { AuthContext } from './useAuth'
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
@@ -23,7 +14,6 @@ export const AuthProvider = ({ children }) => {
     try {
       // Check both localStorage (remember me) and sessionStorage (session only)
       let token = localStorage.getItem('authToken')
-      const rememberMe = localStorage.getItem('rememberMe')
       
       // If no token in localStorage, check sessionStorage
       if (!token) {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Eye, EyeOff, House } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/useAuth'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
