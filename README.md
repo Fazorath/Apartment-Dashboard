@@ -147,21 +147,27 @@ FRONTEND_URL=http://localhost:5173
 - Dynamic apartment-specific headers
 - Responsive dark theme UI
 - Multi-apartment support
+- Pinned chores sort to the top of their group
+- Sort-By control for the chore list
+- Chore priority (Low / Normal / High)
+- Chore list shown first on mobile
+- Narrower search bar
+- Detail drawer shows only the Notes section (no separate description)
 
 ### 🚧 In Progress / Planned
-- **Forgot password flow** (not implemented yet)
-  - Password reset emails and tokens
-  - Backend endpoints for request/reset
-  - Frontend reset screens
-- **Social sign‑in** (Google, Apple)
-- **Email verification** and stronger password requirements
-- **Optional 2FA**
-- **Fix pinned items sorting** - Ensure pinned tasks appear at the top of the task list
-- **Priority system clarification** - Document and implement clear priority logic for upcoming task cards
-- **Lists section enhancement** - Expand functionality and user experience for the Lists section
+Work is tracked on the [Apartment Dashboard Roadmap](https://github.com/users/Fazorath/projects/6) board.
+
+- **Backend API test harness** ([#9](https://github.com/Fazorath/Apartment-Dashboard/issues/9))
+- **Stronger password rules** ([#10](https://github.com/Fazorath/Apartment-Dashboard/issues/10))
+- **Mailer and email verification** ([#11](https://github.com/Fazorath/Apartment-Dashboard/issues/11))
+- **Forgot password flow** ([#12](https://github.com/Fazorath/Apartment-Dashboard/issues/12))
+- **Sign in with Google** ([#13](https://github.com/Fazorath/Apartment-Dashboard/issues/13))
+- **Sign in with Apple** ([#14](https://github.com/Fazorath/Apartment-Dashboard/issues/14))
+- **Optional two-factor login** ([#15](https://github.com/Fazorath/Apartment-Dashboard/issues/15))
+- **TV display mode for the living room** ([#25](https://github.com/Fazorath/Apartment-Dashboard/issues/25))
 
 ### 🔧 Known Issues
-- "Forgot Password?" link is currently non-functional
+- "Forgot Password?" link is currently non-functional ([#12](https://github.com/Fazorath/Apartment-Dashboard/issues/12))
 
 ---
 
