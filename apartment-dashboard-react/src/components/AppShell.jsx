@@ -70,12 +70,12 @@ export default function AppShell({ homeName, homeCode, userName, search, onSearc
             <div className="grid h-8 w-8 flex-none place-items-center rounded-[9px] bg-accent text-on-accent"><House size={18} /></div>
             <div className="min-w-0">
               <p className="truncate text-[17px] leading-[22px] font-bold tracking-tight">{homeName}</p>
-              <p className="text-xs text-subtle">Roommate Dash · <span className="font-semibold tracking-[0.06em] text-muted tabular-nums">{homeCode}</span></p>
+              <p className="truncate text-xs text-subtle">Roommate Dash · <span className="font-semibold tracking-[0.06em] text-muted tabular-nums">{homeCode}</span></p>
             </div>
           </div>
 
           {showSearch ? (
-            <div className={`relative ml-auto min-w-0 max-w-[360px] flex-1 sm:max-lg:max-w-[260px] ${searchOpen ? 'max-sm:absolute max-sm:inset-x-4 max-sm:top-3 max-sm:z-10 max-sm:ml-0 max-sm:max-w-none' : 'max-sm:hidden'}`}>
+            <div className={`relative ml-auto min-w-0 max-w-[360px] flex-1 max-lg:max-w-[260px] ${searchOpen ? 'max-sm:absolute max-sm:inset-x-4 max-sm:top-3 max-sm:z-10 max-sm:ml-0 max-sm:max-w-none' : 'max-sm:hidden'}`}>
               <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle" />
               <label htmlFor="task-search" className="sr-only">Search chores</label>
               <input
