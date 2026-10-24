@@ -16,7 +16,8 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.3.1",
-    "express-rate-limit": "^7.1.5"
+    "express-rate-limit": "^7.1.5",
+    "nodemailer": "^6.10.1"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.3.0",

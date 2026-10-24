@@ -81,6 +81,8 @@ export const AuthProvider = ({ children }) => {
           username: response.data.user.username,
           apartmentCode: response.data.user.apartmentCode,
           apartmentName: response.data.user.apartmentName,
+          email: response.data.user.email,
+          emailVerified: response.data.user.emailVerified,
           isAdmin: response.data.user.isAdmin
         })
         return { success: true }
@@ -113,6 +115,8 @@ export const AuthProvider = ({ children }) => {
           username: response.data.user.username,
           apartmentCode: response.data.user.apartmentCode,
           apartmentName: response.data.user.apartmentName,
+          email: response.data.user.email,
+          emailVerified: response.data.user.emailVerified,
           isAdmin: response.data.user.isAdmin
         })
         return { success: true }
@@ -147,6 +151,8 @@ export const AuthProvider = ({ children }) => {
           username: response.data.user.username,
           apartmentCode: response.data.user.apartmentCode,
           apartmentName: response.data.user.apartmentName,
+          email: response.data.user.email,
+          emailVerified: response.data.user.emailVerified,
           isAdmin: response.data.user.isAdmin
         })
         return { success: true }
@@ -190,9 +196,14 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => (prev ? { ...prev, apartmentName } : prev))
   }
 
+  const setEmailStatus = ({ email, emailVerified }) => {
+    setUser((prev) => (prev ? { ...prev, email, emailVerified } : prev))
+  }
+
   const value = {
     user,
     setApartmentName,
+    setEmailStatus,
     loading,
     login,
     register,

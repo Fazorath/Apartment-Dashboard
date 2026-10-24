@@ -21,6 +21,17 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationTokenHash: {
+    type: String,
+    index: { sparse: true }
+  },
+  emailVerificationExpires: {
+    type: Date
+  },
   apartmentCode: {
     type: String,
     required: true,
@@ -71,6 +82,8 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.toJSON = function() {
   const user = this.toObject()
   delete user.password
+  delete user.emailVerificationTokenHash
+  delete user.emailVerificationExpires
   return user
 }
 

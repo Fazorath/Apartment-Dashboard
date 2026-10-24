@@ -1,12 +1,12 @@
 import { useId, useState } from 'react'
-import { Check, Copy, LogOut } from 'lucide-react'
+import { BadgeCheck, Check, Copy, LogOut, MailWarning } from 'lucide-react'
 import Sheet, { SheetBody, SheetHeader } from './ui/Sheet'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
 import useAuth from '../hooks/useAuth'
-import { updateApartmentName } from '../services/api'
+import { resendVerificationEmail, updateApartmentName, updateEmail } from '../services/api'
 
 function HomeNameForm({ initialName, onSaved }) {
   const [name, setName] = useState(initialName)
@@ -38,10 +38,67 @@ function HomeNameForm({ initialName, onSaved }) {
   )
 }
 
+function EmailForm({ email, emailVerified, onSaved }) {
+  const [value, setValue] = useState(email)
+  const [state, setState] = useState({ saving: false, error: '' })
+  const [resend, setResend] = useState({ sending: false, message: '', error: '' })
+  const changed = value.trim().toLowerCase() !== email && value.trim().length > 0
+
+  const save = async (event) => {
+    event.preventDefault()
+    if (!changed) return
+    setState({ saving: true, error: '' })
+    setResend({ sending: false, message: '', error: '' })
+    try {
+      const result = await updateEmail(value.trim())
+      onSaved(result.user)
+      setValue(result.user.email)
+      setState({ saving: false, error: '' })
+      setResend({ sending: false, message: `We sent a link to ${result.user.email}.`, error: '' })
+    } catch (err) {
+      setState({ saving: false, error: err.response?.data?.error || 'Couldn’t save your email. Try again.' })
+    }
+  }
+
+  const resendLink = async () => {
+    setResend({ sending: true, message: '', error: '' })
+    try {
+      await resendVerificationEmail()
+      setResend({ sending: false, message: `We sent a new link to ${email}.`, error: '' })
+    } catch (err) {
+      setResend({ sending: false, message: '', error: err.response?.data?.error || 'Couldn’t send the email. Try again.' })
+    }
+  }
+
+  return (
+    <div className="grid gap-2">
+      <form onSubmit={save}>
+        <Field label="Email" htmlFor="settings-email" error={state.error} hint={email ? null : 'Add an email so you can recover your account.'}>
+          <div className="flex gap-2">
+            <Input id="settings-email" type="email" autoComplete="email" placeholder="you@example.com" value={value} onChange={(e) => setValue(e.target.value)} />
+            <Button type="submit" variant="secondary" size="lg" disabled={!changed} loading={state.saving}>Save</Button>
+          </div>
+        </Field>
+      </form>
+      {email && emailVerified ? (
+        <p className="flex items-center gap-1.5 text-xs text-accent"><BadgeCheck size={14} aria-hidden="true" /> Verified</p>
+      ) : null}
+      {email && !emailVerified ? (
+        <div className="grid gap-2 rounded-ctl bg-warning-soft px-3 py-2.5 text-xs text-warning" role="status">
+          <p className="flex items-center gap-1.5 font-medium"><MailWarning size={14} aria-hidden="true" /> Not verified yet</p>
+          <p className="text-muted">{resend.message || 'Open the link we emailed you to confirm this address.'}</p>
+          {resend.error ? <p className="text-danger" role="alert">{resend.error}</p> : null}
+          <Button variant="secondary" className="justify-self-start" onClick={resendLink} loading={resend.sending}>Resend email</Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export default function SettingsSheet({ open, onClose, onSignOut }) {
   const titleId = useId()
   const [theme, setTheme] = useTheme()
-  const { user, setApartmentName } = useAuth()
+  const { user, setApartmentName, setEmailStatus } = useAuth()
   const [copied, setCopied] = useState(false)
 
   const copyCode = async () => {
@@ -85,6 +142,7 @@ export default function SettingsSheet({ open, onClose, onSignOut }) {
         <section className="grid gap-3">
           <h3 className="text-xs font-semibold text-muted">Account</h3>
           <p>Signed in as <b className="font-semibold">{user?.username}</b></p>
+          {user ? <EmailForm email={user.email || ''} emailVerified={Boolean(user.emailVerified)} onSaved={setEmailStatus} /> : null}
           <Button variant="secondary" className="justify-self-start" onClick={onSignOut}><LogOut size={16} /> Sign out</Button>
         </section>
       </SheetBody>

@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { AuthProvider } from './contexts/AuthContext'
 import useAuth from './hooks/useAuth'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
+import VerifyEmail from './components/VerifyEmail'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
 
 function AppRoutes() {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -26,6 +28,9 @@ function AppRoutes() {
       </div>
     )
   }
+
+  // Verification links can be opened on a device that isn't signed in
+  if (location.pathname === '/verify-email') return <VerifyEmail />
 
   if (!user) return <Login />
 
