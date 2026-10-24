@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ChevronDown, Plus, RefreshCw } from 'lucide-react'
-import { useAuth } from '../contexts/useAuth'
+import useAuth from '../hooks/useAuth'
 import { getTasks, createTask, updateTask, deleteTask, markTaskDone } from '../services/api'
 import AppShell from './AppShell'
 import TaskRow from './TaskRow'
