@@ -6,6 +6,7 @@ import {
   checkApartmentCodeAvailability,
   generateApartmentCode
 } from '../middleware/auth.js'
+import { checkPassword } from '../utils/passwordPolicy.js'
 
 const router = express.Router()
 
@@ -21,8 +22,9 @@ router.post('/register', validateApartmentCode, async (req, res) => {
       })
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' })
+    const passwordCheck = checkPassword(password, { username })
+    if (!passwordCheck.ok) {
+      return res.status(400).json({ error: 'Choose a stronger password', reasons: passwordCheck.reasons })
     }
 
     if (username.length < 3) {
@@ -200,8 +202,9 @@ router.post('/create-apartment', validateApartmentCode, checkApartmentCodeAvaila
       })
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' })
+    const passwordCheck = checkPassword(password, { username })
+    if (!passwordCheck.ok) {
+      return res.status(400).json({ error: 'Choose a stronger password', reasons: passwordCheck.reasons })
     }
 
     if (username.length < 3) {

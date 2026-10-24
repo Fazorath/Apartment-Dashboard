@@ -1,6 +1,7 @@
 import express from 'express'
 import { getUserModel } from '../models/User.js'
 import dbManager from '../utils/dbManager.js'
+import { checkPassword } from '../utils/passwordPolicy.js'
 import { MongoClient } from 'mongodb'
 
 const router = express.Router()
@@ -145,6 +146,11 @@ router.post('/create-admin', async (req, res) => {
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' })
+    }
+
+    const passwordCheck = checkPassword(password, { username })
+    if (!passwordCheck.ok) {
+      return res.status(400).json({ error: 'Choose a stronger password', reasons: passwordCheck.reasons })
     }
 
     const User = await getUserModel()

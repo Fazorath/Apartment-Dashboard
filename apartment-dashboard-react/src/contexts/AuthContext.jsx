@@ -122,7 +122,8 @@ export const AuthProvider = ({ children }) => {
       console.error('Registration error:', error)
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Registration failed' 
+        error: error.response?.data?.error || 'Registration failed',
+        reasons: error.response?.data?.reasons
       }
     }
   }
@@ -155,7 +156,8 @@ export const AuthProvider = ({ children }) => {
       console.error('Create apartment error:', error)
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Apartment creation failed' 
+        error: error.response?.data?.error || 'Apartment creation failed',
+        reasons: error.response?.data?.reasons
       }
     }
   }
