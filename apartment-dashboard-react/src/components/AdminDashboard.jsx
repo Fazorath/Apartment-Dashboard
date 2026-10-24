@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
 import { Building2, Database, LogOut, RefreshCw, Shield, Users } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import useAuth from '../hooks/useAuth'
 import Card from './ui/Card'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'

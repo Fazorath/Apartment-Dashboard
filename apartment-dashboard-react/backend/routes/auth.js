@@ -1,6 +1,5 @@
 import express from 'express'
 import { getUserModel } from '../models/User.js'
-import dbManager from '../utils/dbManager.js'
 import {
   generateToken,
   validateApartmentCode,

@@ -5,7 +5,7 @@ import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
-import { useAuth } from '../contexts/AuthContext'
+import useAuth from '../hooks/useAuth'
 import { updateApartmentName } from '../services/api'
 
 function HomeNameForm({ initialName, onSaved }) {
