@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import VerifyEmail from './components/VerifyEmail'
 import { ForgotPassword, ResetPassword } from './components/PasswordRecovery'
+import GoogleCallback from './components/GoogleCallback'
 
 function App() {
   return (
@@ -36,6 +37,9 @@ function AppRoutes() {
   // Same for reset links; the request screen is for people who can't sign in
   if (location.pathname === '/reset-password') return <ResetPassword />
   if (!user && location.pathname === '/forgot-password') return <ForgotPassword />
+
+  // Google returns here both to sign in and, for a signed-in roommate, to link
+  if (location.pathname === '/auth/google/callback') return <GoogleCallback />
 
   if (!user) return <Login />
 

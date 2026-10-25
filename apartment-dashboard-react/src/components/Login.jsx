@@ -5,6 +5,8 @@ import useAuth from '../hooks/useAuth'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
+import GoogleMark from './ui/GoogleMark'
+import { beginGoogleSignIn } from '../lib/googleSignIn'
 import { checkPassword, PASSWORD_HINT } from '../../backend/utils/passwordPolicy.js'
 
 const MODES = [
@@ -30,6 +32,7 @@ const Login = () => {
   const [errorReasons, setErrorReasons] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const { login, register, createApartment, generateApartmentCode } = useAuth()
 
@@ -66,6 +69,18 @@ const Login = () => {
     const result = await generateApartmentCode()
     if (result.success) setFormData((prev) => ({ ...prev, apartmentCode: result.apartmentCode }))
     else setError(result.error)
+  }
+
+  // New Google users pick their home after Google, so this works from any tab
+  const handleGoogle = async () => {
+    setGoogleLoading(true)
+    setError('')
+    setErrorReasons([])
+    const failure = await beginGoogleSignIn('signin')
+    if (failure) {
+      setError(failure)
+      setGoogleLoading(false)
+    }
   }
 
   const switchMode = (next) => {
@@ -159,6 +174,14 @@ const Login = () => {
           ) : null}
 
           <Button type="submit" variant="primary" size="lg" loading={loading}>{SUBMIT_LABEL[mode]}</Button>
+
+          <div className="flex items-center gap-3 text-xs text-subtle" aria-hidden="true">
+            <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
+          </div>
+
+          <Button variant="secondary" size="lg" onClick={handleGoogle} loading={googleLoading}>
+            {googleLoading ? null : <GoogleMark />} Continue with Google
+          </Button>
         </form>
       </main>
     </div>
