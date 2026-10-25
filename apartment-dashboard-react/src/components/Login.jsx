@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Eye, EyeOff, House } from 'lucide-react'
+import { Eye, EyeOff, House, ShieldCheck } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
@@ -22,6 +22,51 @@ const passwordHint = (password, username) => {
   return ok ? 'Looks good.' : reasons.join(' ')
 }
 
+// Second sign-in step when 2FA is on. Calls onExpired if the password has to be entered again.
+function TwoFactorStep({ twoFactorToken, rememberMe, onExpired, onBack }) {
+  const { completeTwoFactorLogin } = useAuth()
+  const [code, setCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    // On success AuthContext sets the user and App swaps in the dashboard.
+    const result = await completeTwoFactorLogin(twoFactorToken, code, rememberMe)
+    if (!result.success && result.reason === 'expired') return onExpired(result.error)
+    if (!result.success) {
+      setError(result.error)
+      setCode('')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-5" noValidate>
+      <Field label="Verification code" htmlFor="login-2fa-code" hint="Enter the 6-digit code from your authenticator app. Lost your phone? Use one of your recovery codes.">
+        <Input
+          id="login-2fa-code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          autoComplete="one-time-code"
+          autoCapitalize="none"
+          spellCheck={false}
+          className="text-lg tracking-[0.12em] tabular-nums"
+          autoFocus
+          required
+        />
+      </Field>
+
+      {error ? <div className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">{error}</div> : null}
+
+      <Button type="submit" variant="primary" size="lg" loading={loading} disabled={!code.trim()}>Verify</Button>
+      <Button variant="ghost" size="lg" onClick={onBack}>Back</Button>
+    </form>
+  )
+}
+
 const Login = () => {
   const [mode, setMode] = useState('signin')
   const [formData, setFormData] = useState({ username: '', password: '', apartmentCode: '', apartmentName: '', email: '' })
@@ -30,6 +75,7 @@ const Login = () => {
   const [errorReasons, setErrorReasons] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
+  const [twoFactorToken, setTwoFactorToken] = useState(null)
 
   const { login, register, createApartment, generateApartmentCode } = useAuth()
 
@@ -46,7 +92,9 @@ const Login = () => {
           ? await createApartment(username, password, apartmentCode, apartmentName, email)
           : await register(username, password, apartmentCode, email)
       // On success AuthContext sets the user and App swaps in the dashboard.
-      if (!result.success) {
+      if (result.twoFactorToken) {
+        setTwoFactorToken(result.twoFactorToken)
+      } else if (!result.success) {
         setError(result.error)
         setErrorReasons(result.reasons ?? [])
       }
@@ -72,6 +120,32 @@ const Login = () => {
     setMode(next)
     setError('')
     setErrorReasons([])
+  }
+
+  const leaveTwoFactorStep = (message = '') => {
+    setTwoFactorToken(null)
+    setFormData((prev) => ({ ...prev, password: '' }))
+    setError(message)
+    setErrorReasons([])
+  }
+
+  if (twoFactorToken) {
+    return (
+      <div className="min-h-screen bg-bg px-4 text-ink">
+        <main className="mx-auto grid min-h-screen max-w-[420px] place-items-center py-10">
+          <div className="grid w-full gap-5 rounded-sheet border border-line bg-surface px-7 pt-8 pb-7 shadow-card max-sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-accent text-on-accent"><ShieldCheck size={20} /></div>
+              <div>
+                <h1 className="text-[22px] leading-7 font-bold tracking-tight">Two-factor sign-in</h1>
+                <p className="text-muted">Signing in as {formData.username}</p>
+              </div>
+            </div>
+            <TwoFactorStep twoFactorToken={twoFactorToken} rememberMe={rememberMe} onExpired={leaveTwoFactorStep} onBack={() => leaveTwoFactorStep()} />
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
