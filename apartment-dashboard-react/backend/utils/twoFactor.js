@@ -10,7 +10,7 @@ const RECOVERY_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 const normalizeRecoveryCode = (code) => code.replace(/[\s-]/g, '').toLowerCase()
 
 const newRecoveryCode = () => {
-  const chars = Array.from(crypto.randomBytes(10), (byte) => RECOVERY_ALPHABET[byte % RECOVERY_ALPHABET.length])
+  const chars = Array.from({ length: 10 }, () => RECOVERY_ALPHABET[crypto.randomInt(RECOVERY_ALPHABET.length)])
   return `${chars.slice(0, 5).join('')}-${chars.slice(5).join('')}`
 }
 

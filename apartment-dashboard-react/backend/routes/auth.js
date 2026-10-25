@@ -89,7 +89,7 @@ const twoFactorCodeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
   skipSuccessfulRequests: true,
-  keyGenerator: (req) => String(req.user?._id ?? verifyTwoFactorToken(req.body?.twoFactorToken).userId),
+  keyGenerator: (req) => String(req.user?._id ?? verifyTwoFactorToken(req.body?.twoFactorToken)?.userId),
   // A missing or bad pending token is turned away before any code is checked
   skip: (req) => !req.user && !verifyTwoFactorToken(req.body?.twoFactorToken),
   standardHeaders: 'draft-7',
@@ -236,18 +236,20 @@ router.post('/login', async (req, res) => {
   }
 })
 
+const TWO_FACTOR_EXPIRED = { error: 'Your sign-in timed out. Enter your password again.', reason: 'expired' }
+
 // Second login step: trade a 2FA pending token and a code (from the app, or a recovery code) for a session
 router.post('/login/2fa', twoFactorCodeLimiter, async (req, res) => {
   try {
     const decoded = verifyTwoFactorToken(req.body.twoFactorToken)
     if (!decoded) {
-      return res.status(401).json({ error: 'Your sign-in timed out. Enter your password again.', reason: 'expired' })
+      return res.status(401).json(TWO_FACTOR_EXPIRED)
     }
 
     const User = await getUserModel()
     const user = await User.findById(decoded.userId)
     if (!user || !user.twoFactorEnabled || isTokenStale(decoded, user)) {
-      return res.status(401).json({ error: 'Your sign-in timed out. Enter your password again.', reason: 'expired' })
+      return res.status(401).json(TWO_FACTOR_EXPIRED)
     }
 
     const check = await checkSecondFactor(User, user, req.body.code)

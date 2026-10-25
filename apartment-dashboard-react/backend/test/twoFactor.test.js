@@ -14,7 +14,7 @@ const nextName = () => `guarded${++userCount}`
 
 const auth = (req, token) => req.set('Authorization', `Bearer ${token}`)
 const setup = (token) => auth(request(app).post('/api/auth/2fa/setup'), token)
-const confirm = (token, code) => auth(request(app).post('/api/auth/2fa/confirm'), token).send({ code })
+const confirmSetup = (token, code) => auth(request(app).post('/api/auth/2fa/confirm'), token).send({ code })
 const disable = (token, code) => auth(request(app).post('/api/auth/2fa/disable'), token).send({ code })
 const me = (token) => auth(request(app).get('/api/auth/me'), token)
 const chores = (token) => auth(request(app).get('/api/tasks'), token)
@@ -44,12 +44,14 @@ const signUp = async ({ email } = {}) => {
 const signUpWithTwoFactor = async (options) => {
   const account = await signUp(options)
   const { secret } = (await setup(account.token)).body
-  const { recoveryCodes } = (await confirm(account.token, totpCode(secret))).body
+  const { recoveryCodes } = (await confirmSetup(account.token, totpCode(secret))).body
   return { ...account, secret, recoveryCodes }
 }
 
 // A code from the next time step, so it isn't the one setup just used
 const nextCode = (secret, steps = 1) => totpCode(secret, Date.now() + steps * STEP_MS)
+// Six digits that differ from the given code
+const otherThan = (code) => String((Number(code) + 1) % 1000000).padStart(6, '0')
 
 describe('two-factor login', () => {
   describe('turning it on', () => {
@@ -68,9 +70,9 @@ describe('two-factor login', () => {
     it('refuses a wrong code and stays off', async () => {
       const account = await signUp()
       const { secret } = (await setup(account.token)).body
-      const wrong = String((Number(totpCode(secret)) + 1) % 1000000).padStart(6, '0')
+      const wrong = otherThan(totpCode(secret))
 
-      const res = await confirm(account.token, wrong)
+      const res = await confirmSetup(account.token, wrong)
       expect(res.status).toBe(400)
       expect(res.body.recoveryCodes).toBeUndefined()
       expect((await me(account.token)).body.user.twoFactorEnabled).toBe(false)
@@ -80,14 +82,14 @@ describe('two-factor login', () => {
       const account = await signUp()
       const { secret } = (await setup(account.token)).body
 
-      const res = await confirm(account.token, totpCode(secret))
+      const res = await confirmSetup(account.token, totpCode(secret))
       expect(res.status).toBe(200)
       expect(res.body.recoveryCodes).toHaveLength(10)
       expect(new Set(res.body.recoveryCodes).size).toBe(10)
       expect((await me(account.token)).body.user.twoFactorEnabled).toBe(true)
 
       // Nothing hands the codes or the secret out again
-      const again = await confirm(account.token, totpCode(secret))
+      const again = await confirmSetup(account.token, totpCode(secret))
       expect(again.status).toBe(400)
       expect(again.body.recoveryCodes).toBeUndefined()
       expect(JSON.stringify((await me(account.token)).body)).not.toContain(res.body.recoveryCodes[0])
@@ -146,7 +148,7 @@ describe('two-factor login', () => {
       const { twoFactorToken } = (await login(account.username)).body
       const code = nextCode(account.secret)
 
-      const wrong = await loginCode(twoFactorToken, String((Number(code) + 1) % 1000000).padStart(6, '0'))
+      const wrong = await loginCode(twoFactorToken, otherThan(code))
       expect(wrong.status).toBe(401)
       expect(wrong.body.token).toBeUndefined()
 
@@ -218,7 +220,7 @@ describe('two-factor login', () => {
       const account = await signUpWithTwoFactor()
       const code = nextCode(account.secret)
 
-      for (const bad of [String((Number(code) + 1) % 1000000).padStart(6, '0'), '', undefined, 'not-a-code']) {
+      for (const bad of [otherThan(code), '', undefined, 'not-a-code']) {
         expect((await disable(account.token, bad)).status).toBe(400)
       }
       expect((await me(account.token)).body.user.twoFactorEnabled).toBe(true)
@@ -249,7 +251,7 @@ describe('two-factor login', () => {
 
       const { secret } = (await setup(account.token)).body
       expect(secret).not.toBe(account.secret)
-      const { recoveryCodes } = (await confirm(account.token, totpCode(secret))).body
+      const { recoveryCodes } = (await confirmSetup(account.token, totpCode(secret))).body
       expect(recoveryCodes).toHaveLength(10)
       expect(recoveryCodes).not.toContain(account.recoveryCodes[0])
 
@@ -263,7 +265,7 @@ describe('two-factor login', () => {
     })
   })
   describe('rate limiting', () => {
-    const wrongCode = (secret) => String((Number(nextCode(secret)) + 1) % 1000000).padStart(6, '0')
+    const wrongCode = (secret) => otherThan(nextCode(secret))
 
     it('locks out code guessing at sign-in, even with fresh pending tokens', async () => {
       const account = await signUpWithTwoFactor()
@@ -303,7 +305,7 @@ describe('two-factor login', () => {
       const account = await signUp()
       const { secret } = (await setup(account.token)).body
       const statuses = []
-      for (let i = 0; i < 6; i++) statuses.push((await confirm(account.token, wrongCode(secret))).status)
+      for (let i = 0; i < 6; i++) statuses.push((await confirmSetup(account.token, wrongCode(secret))).status)
       expect(statuses).toEqual([400, 400, 400, 400, 400, 429])
 
       const other = await signUpWithTwoFactor()
