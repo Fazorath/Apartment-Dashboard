@@ -32,6 +32,17 @@ const userSchema = new mongoose.Schema({
   emailVerificationExpires: {
     type: Date
   },
+  passwordResetTokenHash: {
+    type: String,
+    index: { sparse: true }
+  },
+  passwordResetExpires: {
+    type: Date
+  },
+  // Tokens issued before this are rejected (see isTokenStale in middleware/auth.js)
+  passwordChangedAt: {
+    type: Date
+  },
   apartmentCode: {
     type: String,
     required: true,
@@ -84,6 +95,8 @@ userSchema.methods.toJSON = function() {
   delete user.password
   delete user.emailVerificationTokenHash
   delete user.emailVerificationExpires
+  delete user.passwordResetTokenHash
+  delete user.passwordResetExpires
   return user
 }
 

@@ -6,6 +6,7 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import VerifyEmail from './components/VerifyEmail'
+import { ForgotPassword, ResetPassword } from './components/PasswordRecovery'
 
 function App() {
   return (
@@ -31,6 +32,10 @@ function AppRoutes() {
 
   // Verification links can be opened on a device that isn't signed in
   if (location.pathname === '/verify-email') return <VerifyEmail />
+
+  // Same for reset links; the request screen is for people who can't sign in
+  if (location.pathname === '/reset-password') return <ResetPassword />
+  if (!user && location.pathname === '/forgot-password') return <ForgotPassword />
 
   if (!user) return <Login />
 
