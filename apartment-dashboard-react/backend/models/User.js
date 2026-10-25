@@ -11,10 +11,16 @@ const userSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 30
   },
+  // Accounts made through Google have no password until one is set by a reset
   password: {
     type: String,
-    required: true,
+    required: function() { return !this.googleId },
     minlength: 6
+  },
+  // Google's account id (`sub`), once Google is linked
+  googleId: {
+    type: String,
+    index: { unique: true, sparse: true }
   },
   email: {
     type: String,
@@ -106,6 +112,7 @@ userSchema.pre('save', async function(next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false
   return bcrypt.compare(candidatePassword, this.password)
 }
 
@@ -122,6 +129,7 @@ userSchema.methods.toJSON = function() {
   delete user.twoFactorPendingSecret
   delete user.twoFactorLastStep
   delete user.twoFactorRecoveryCodeHashes
+  delete user.googleId
   return user
 }
 

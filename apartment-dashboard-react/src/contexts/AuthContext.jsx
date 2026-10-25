@@ -73,6 +73,7 @@ export const AuthProvider = ({ children }) => {
       apartmentName: data.user.apartmentName,
       email: data.user.email,
       emailVerified: data.user.emailVerified,
+      googleLinked: data.user.googleLinked,
       isAdmin: data.user.isAdmin,
       twoFactorEnabled: data.user.twoFactorEnabled
     })
@@ -227,11 +228,34 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => (prev ? { ...prev, twoFactorEnabled } : prev))
   }
 
+  const setGoogleLinked = (googleLinked) => {
+    setUser((prev) => (prev ? { ...prev, googleLinked } : prev))
+  }
+
+  // Sign in with a session the server already issued (Google sign-in), kept across restarts
+  const acceptSession = (token, sessionUser) => {
+    localStorage.setItem('authToken', token)
+    localStorage.setItem('rememberMe', 'true')
+    sessionStorage.removeItem('authToken')
+    setUser({
+      username: sessionUser.username,
+      apartmentCode: sessionUser.apartmentCode,
+      apartmentName: sessionUser.apartmentName,
+      email: sessionUser.email,
+      emailVerified: sessionUser.emailVerified,
+      googleLinked: sessionUser.googleLinked,
+      isAdmin: sessionUser.isAdmin,
+      twoFactorEnabled: sessionUser.twoFactorEnabled
+    })
+  }
+
   const value = {
     user,
     setApartmentName,
     setEmailStatus,
     setTwoFactorEnabled,
+    setGoogleLinked,
+    acceptSession,
     loading,
     login,
     completeTwoFactorLogin,

@@ -4,7 +4,10 @@ import { Eye, EyeOff, House, ShieldCheck } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
+import TwoFactorStep from './TwoFactorStep'
 import { Field, Input } from './ui/Field'
+import GoogleMark from './ui/GoogleMark'
+import { beginGoogleSignIn } from '../lib/googleSignIn'
 import { checkPassword, PASSWORD_HINT } from '../../backend/utils/passwordPolicy.js'
 
 const MODES = [
@@ -28,51 +31,6 @@ const AuthScreen = ({ children }) => (
   </div>
 )
 
-// Second sign-in step when 2FA is on. Calls onExpired if the password has to be entered again.
-function TwoFactorStep({ twoFactorToken, rememberMe, onExpired, onBack }) {
-  const { completeTwoFactorLogin } = useAuth()
-  const [code, setCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    // On success AuthContext sets the user and App swaps in the dashboard.
-    const result = await completeTwoFactorLogin(twoFactorToken, code, rememberMe)
-    if (!result.success && result.reason === 'expired') return onExpired(result.error)
-    if (!result.success) {
-      setError(result.error)
-      setCode('')
-      setLoading(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-5" noValidate>
-      <Field label="Verification code" htmlFor="login-2fa-code" hint="Enter the 6-digit code from your authenticator app. Lost your phone? Use one of your recovery codes.">
-        <Input
-          id="login-2fa-code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          autoComplete="one-time-code"
-          autoCapitalize="none"
-          spellCheck={false}
-          className="text-lg tracking-[0.12em] tabular-nums"
-          autoFocus
-          required
-        />
-      </Field>
-
-      {error ? <div className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">{error}</div> : null}
-
-      <Button type="submit" variant="primary" size="lg" loading={loading} disabled={!code.trim()}>Verify</Button>
-      <Button variant="ghost" size="lg" onClick={onBack}>Back</Button>
-    </form>
-  )
-}
-
 const Login = () => {
   const [mode, setMode] = useState('signin')
   const [formData, setFormData] = useState({ username: '', password: '', apartmentCode: '', apartmentName: '', email: '' })
@@ -82,6 +40,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [twoFactorToken, setTwoFactorToken] = useState(null)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const { login, register, createApartment, generateApartmentCode } = useAuth()
 
@@ -120,6 +79,18 @@ const Login = () => {
     const result = await generateApartmentCode()
     if (result.success) setFormData((prev) => ({ ...prev, apartmentCode: result.apartmentCode }))
     else setError(result.error)
+  }
+
+  // New Google users pick their home after Google, so this works from any tab
+  const handleGoogle = async () => {
+    setGoogleLoading(true)
+    setError('')
+    setErrorReasons([])
+    const failure = await beginGoogleSignIn('signin')
+    if (failure) {
+      setError(failure)
+      setGoogleLoading(false)
+    }
   }
 
   const switchMode = (next) => {
@@ -236,6 +207,14 @@ const Login = () => {
         ) : null}
 
         <Button type="submit" variant="primary" size="lg" loading={loading}>{SUBMIT_LABEL[mode]}</Button>
+
+        <div className="flex items-center gap-3 text-xs text-subtle" aria-hidden="true">
+          <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
+        </div>
+
+        <Button variant="secondary" size="lg" onClick={handleGoogle} loading={googleLoading}>
+          {googleLoading ? null : <GoogleMark />} Continue with Google
+        </Button>
       </form>
     </AuthScreen>
   )
