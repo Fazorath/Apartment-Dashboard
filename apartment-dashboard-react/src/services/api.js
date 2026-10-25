@@ -103,3 +103,14 @@ export const verifyEmail = async (token) => {
   const response = await axios.post('/api/auth/verify-email', { token })
   return response.data
 }
+
+// Password reset API
+export const requestPasswordReset = async (identifier) => {
+  const response = await axios.post('/api/auth/request-password-reset', { identifier })
+  return response.data
+}
+
+export const resetPassword = async (token, password) => {
+  const response = await axios.post('/api/auth/reset-password', { token, password })
+  return response.data
+}

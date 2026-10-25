@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Eye, EyeOff, House } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
 import Button from './ui/Button'
@@ -133,10 +134,13 @@ const Login = () => {
           </Field>
 
           {mode === 'signin' ? (
-            <label className="flex items-center gap-2 text-muted">
-              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
-              Keep me signed in
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-muted">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
+                Keep me signed in
+              </label>
+              <Link to="/forgot-password" className="text-sm font-medium text-accent hover:underline">Forgot password?</Link>
+            </div>
           ) : (
             <Field label="Email" htmlFor="login-email" optional>
               <Input id="login-email" name="email" type="email" value={formData.email} onChange={handleChange} autoComplete="email" placeholder="you@example.com" />

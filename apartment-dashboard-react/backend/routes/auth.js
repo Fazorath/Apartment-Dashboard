@@ -4,12 +4,14 @@ import { getUserModel } from '../models/User.js'
 import {
   authenticateToken,
   generateToken,
+  isTokenStale,
   validateApartmentCode,
   checkApartmentCodeAvailability,
   generateApartmentCode
 } from '../middleware/auth.js'
 import { checkPassword } from '../utils/passwordPolicy.js'
 import { sendVerificationEmail, verifyEmailToken } from '../utils/emailVerification.js'
+import { requestPasswordReset, resetPasswordWithToken } from '../utils/passwordReset.js'
 
 const router = express.Router()
 
@@ -34,6 +36,25 @@ const verificationEmailLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many verification emails. Try again in a few minutes.' }
+})
+
+// Keyed by what was typed, not by whether an account matches, so hitting the
+// limit looks the same for real and made-up accounts and a flood can't fill one inbox
+const passwordResetRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  keyGenerator: (req) => String(req.body?.identifier ?? '').trim().toLowerCase(),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many reset requests. Try again in a few minutes.' }
+})
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Try again in a few minutes.' }
 })
 
 // Register
@@ -164,7 +185,7 @@ router.post('/login', async (req, res) => {
     await user.save()
 
     // Generate token
-    const token = generateToken(user._id)
+    const token = generateToken(user._id, user.passwordChangedAt)
 
     res.json({
       success: true,
@@ -204,6 +225,9 @@ router.get('/me', async (req, res) => {
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' })
+    }
+    if (isTokenStale(decoded, user)) {
+      return res.status(401).json({ error: 'Invalid token' })
     }
 
     res.json({
@@ -394,6 +418,47 @@ router.post('/verify-email', async (req, res) => {
   } catch (error) {
     console.error('Verify email error:', error)
     res.status(500).json({ error: 'Failed to verify email' })
+  }
+})
+
+// Request a password reset. Always answers the same, so it can't be used to find accounts.
+router.post('/request-password-reset', passwordResetRequestLimiter, async (req, res) => {
+  const { identifier } = req.body
+  if (typeof identifier !== 'string' || !identifier.trim()) {
+    return res.status(400).json({ error: 'Enter your username or email' })
+  }
+
+  res.json({ success: true, message: 'If that account has a verified email, a reset link is on its way.' })
+
+  // After responding, so response time doesn't show whether an account matched
+  try {
+    await requestPasswordReset(await getUserModel(), identifier)
+  } catch (error) {
+    console.error('Request password reset error:', error)
+  }
+})
+
+const RESET_ERRORS = {
+  invalid: 'This reset link is invalid or has already been used.',
+  expired: 'This reset link has expired. Request a new one.'
+}
+
+// Set a new password from a reset link (public: the link may open on any device)
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
+  try {
+    const User = await getUserModel()
+    const result = await resetPasswordWithToken(User, req.body.token, req.body.password)
+    if (!result.ok && result.reason === 'weak') {
+      return res.status(400).json({ error: 'Choose a stronger password', reason: result.reason, reasons: result.reasons })
+    }
+    if (!result.ok) {
+      return res.status(400).json({ error: RESET_ERRORS[result.reason], reason: result.reason })
+    }
+
+    res.json({ success: true, message: 'Password updated. Sign in with your new password.' })
+  } catch (error) {
+    console.error('Reset password error:', error)
+    res.status(500).json({ error: 'Failed to reset password' })
   }
 })
 

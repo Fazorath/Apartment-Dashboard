@@ -20,7 +20,7 @@ export const authenticateToken = async (req, res, next) => {
     const User = await getUserModel()
     const user = await User.findById(decoded.userId).select('-password')
     
-    if (!user) {
+    if (!user || isTokenStale(decoded, user)) {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
@@ -89,12 +89,22 @@ export const checkApartmentCodeAvailability = async (req, res, next) => {
   }
 }
 
+// A token carries the password-change time it was issued under (`pwc`, in ms; 0 if
+// never changed), so a reset signs out older sessions without a same-second race
+// between `iat` (whole seconds) and the change time
+const passwordChangeStamp = (passwordChangedAt) => passwordChangedAt ? new Date(passwordChangedAt).getTime() : 0
+
+/**
+ * True when the user's password changed after this token was issued
+ */
+export const isTokenStale = (decoded, user) => (decoded.pwc ?? 0) !== passwordChangeStamp(user.passwordChangedAt)
+
 /**
  * Generate JWT token with user ID
  */
-export const generateToken = (userId) => {
+export const generateToken = (userId, passwordChangedAt) => {
   return jwt.sign(
-    { userId },
+    { userId, pwc: passwordChangeStamp(passwordChangedAt) },
     process.env.JWT_SECRET || 'fallback-secret',
     { expiresIn: '7d' }
   )

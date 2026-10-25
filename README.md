@@ -160,14 +160,13 @@ Work is tracked on the [Apartment Dashboard Roadmap](https://github.com/users/Fa
 - **Backend API test harness** ([#9](https://github.com/Fazorath/Apartment-Dashboard/issues/9))
 - **Stronger password rules** ([#10](https://github.com/Fazorath/Apartment-Dashboard/issues/10))
 - **Mailer and email verification** ([#11](https://github.com/Fazorath/Apartment-Dashboard/issues/11))
-- **Forgot password flow** ([#12](https://github.com/Fazorath/Apartment-Dashboard/issues/12))
 - **Sign in with Google** ([#13](https://github.com/Fazorath/Apartment-Dashboard/issues/13))
 - **Sign in with Apple** ([#14](https://github.com/Fazorath/Apartment-Dashboard/issues/14))
 - **Optional two-factor login** ([#15](https://github.com/Fazorath/Apartment-Dashboard/issues/15))
 - **TV display mode for the living room** ([#25](https://github.com/Fazorath/Apartment-Dashboard/issues/25))
 
 ### 🔧 Known Issues
-- "Forgot Password?" link is currently non-functional ([#12](https://github.com/Fazorath/Apartment-Dashboard/issues/12))
+- None at the moment.
 
 ---
 
