@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import request from 'supertest'
 import app from '../app.js'
 import { outbox } from '../utils/mailer.js'
+import { totpCode } from '../utils/totp.js'
 
 const STRONG_PASSWORD = 'maple-street-kettle'
 // AL420 is on the default allowlist; the other test files open it too, so joining it always works
@@ -209,6 +210,27 @@ describe('sign in with Google', () => {
   })
 
   describe('linking', () => {
+    it('still asks for a 2FA code when signing in with Google', async () => {
+      const token = (await request(app).post('/api/auth/register').send({ username: 'googletwofactor', password: STRONG_PASSWORD, apartmentCode: APARTMENT_CODE })).body.token
+      const account = nextGoogleAccount()
+      expect((await signInWithGoogle(account, { intent: 'link', token })).status).toBe(200)
+
+      const auth = (req) => req.set('Authorization', `Bearer ${token}`)
+      const { secret } = (await auth(request(app).post('/api/auth/2fa/setup'))).body
+      expect((await auth(request(app).post('/api/auth/2fa/confirm')).send({ code: totpCode(secret) })).status).toBe(200)
+
+      const res = await signInWithGoogle(account)
+      expect(res.status).toBe(200)
+      expect(res.body).toMatchObject({ status: 'two-factor', twoFactorRequired: true })
+      expect(res.body.token).toBeUndefined()
+      expect((await me(res.body.twoFactorToken)).status).toBe(401)
+
+      const done = await request(app).post('/api/auth/login/2fa')
+        .send({ twoFactorToken: res.body.twoFactorToken, code: totpCode(secret, Date.now() + 30 * 1000) })
+      expect(done.status).toBe(200)
+      expect((await me(done.body.token)).body.user.username).toBe('googletwofactor')
+    })
+
     const registerWithPassword = async (username, email) => {
       const res = await request(app).post('/api/auth/register').send({ username, password: STRONG_PASSWORD, apartmentCode: APARTMENT_CODE, email })
       expect(res.status).toBe(201)

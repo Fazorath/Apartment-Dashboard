@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit'
 import { getUserModel } from '../models/User.js'
-import { authenticateToken, generateToken, validateApartmentCode } from '../middleware/auth.js'
+import { authenticateToken, generateToken, generateTwoFactorToken, validateApartmentCode } from '../middleware/auth.js'
 import { INVALID_APARTMENT_CODE, joinableApartmentName } from '../utils/apartments.js'
 import { createSignupToken, createState, readSignupToken, readState } from '../utils/oauthTokens.js'
 
@@ -13,9 +13,9 @@ const authenticateIfLinking = (intent, req, res, next) => intent === 'link' ? au
  * Adds a provider's `/<name>/start`, `/callback` and `/complete` routes to the auth router.
  * `provider` is `{ name, label, idField, isConfigured, authUrl, exchangeCode }` (see
  * googleOAuth.js); `idField` is the User field that holds the provider's account id.
- * `helpers` are the auth router's own `sessionUser` and `trySendVerificationEmail`.
+ * `helpers` are the auth router's own `sessionUser`, `startSession` and `trySendVerificationEmail`.
  */
-export default function mountSocialSignIn(router, provider, { sessionUser, trySendVerificationEmail }) {
+export default function mountSocialSignIn(router, provider, { sessionUser, startSession, trySendVerificationEmail }) {
   const { name, label, idField } = provider
   const path = (route) => `/${name}${route}`
 
@@ -99,14 +99,17 @@ export default function mountSocialSignIn(router, provider, { sessionUser, trySe
 
       if (linkedUser) {
         trustProviderEmail(linkedUser, identity)
-        linkedUser.lastLogin = new Date()
-        await linkedUser.save()
-        return res.json({
-          success: true,
-          status: 'signed-in',
-          token: generateToken(linkedUser._id, linkedUser.passwordChangedAt),
-          user: sessionUser(linkedUser)
-        })
+        // The provider stands in for the password, so 2FA still asks for a code at /login/2fa
+        if (linkedUser.twoFactorEnabled) {
+          await linkedUser.save()
+          return res.json({
+            success: true,
+            status: 'two-factor',
+            twoFactorRequired: true,
+            twoFactorToken: generateTwoFactorToken(linkedUser._id, linkedUser.passwordChangedAt)
+          })
+        }
+        return res.json({ ...(await startSession(linkedUser)), status: 'signed-in' })
       }
 
       // Rather than a second account, or a takeover, the owner of that address links the provider themselves

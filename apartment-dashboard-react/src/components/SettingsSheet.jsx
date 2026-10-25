@@ -1,12 +1,12 @@
 import { useId, useState } from 'react'
-import { BadgeCheck, Check, Copy, LogOut, MailWarning } from 'lucide-react'
+import { BadgeCheck, Check, Copy, LogOut, MailWarning, ShieldCheck } from 'lucide-react'
 import Sheet, { SheetBody, SheetHeader } from './ui/Sheet'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
 import useAuth from '../hooks/useAuth'
-import { resendVerificationEmail, updateApartmentName, updateEmail } from '../services/api'
+import { confirmTwoFactor, disableTwoFactor, resendVerificationEmail, setupTwoFactor, updateApartmentName, updateEmail } from '../services/api'
 import { PROVIDERS, beginSocialSignIn } from '../lib/socialSignIn'
 import GoogleMark from './ui/GoogleMark'
 import AppleMark from './ui/AppleMark'
@@ -98,6 +98,142 @@ function EmailForm({ email, emailVerified, onSaved }) {
   )
 }
 
+const errorFrom = (err, fallback) => err.response?.data?.error || fallback
+
+const TwoFactorOn = () => (
+  <p className="flex items-center gap-1.5 text-sm font-medium text-accent"><ShieldCheck size={16} aria-hidden="true" /> Two-factor login is on</p>
+)
+
+// Two-factor login: off → setup (scan + confirm) → recovery codes (shown once) → on → turn off with a code
+function TwoFactorSection({ enabled, onChange }) {
+  const [step, setStep] = useState('idle')
+  const [setup, setSetup] = useState(null)
+  const [code, setCode] = useState('')
+  const [recoveryCodes, setRecoveryCodes] = useState([])
+  const [state, setState] = useState({ busy: false, error: '' })
+  const [copied, setCopied] = useState(false)
+
+  const reset = () => {
+    setStep('idle')
+    setSetup(null)
+    setCode('')
+    setState({ busy: false, error: '' })
+  }
+
+  const run = async (action, fallback) => {
+    setState({ busy: true, error: '' })
+    try {
+      await action()
+      setState({ busy: false, error: '' })
+    } catch (err) {
+      setState({ busy: false, error: errorFrom(err, fallback) })
+    }
+  }
+
+  const start = () => run(async () => {
+    setSetup(await setupTwoFactor())
+    setStep('setup')
+  }, 'Couldn’t start setup. Try again.')
+
+  const confirmSetup = (event) => {
+    event.preventDefault()
+    run(async () => {
+      const result = await confirmTwoFactor(code)
+      setRecoveryCodes(result.recoveryCodes)
+      setSetup(null)
+      setCode('')
+      setStep('codes')
+      onChange(true)
+    }, 'Couldn’t turn on two-factor login. Try again.')
+  }
+
+  const turnOff = (event) => {
+    event.preventDefault()
+    run(async () => {
+      await disableTwoFactor(code)
+      reset()
+      onChange(false)
+    }, 'Couldn’t turn off two-factor login. Try again.')
+  }
+
+  const copyCodes = async () => {
+    try {
+      await navigator.clipboard.writeText(recoveryCodes.join('\n'))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      const el = document.getElementById('settings-recovery-codes')
+      if (el) window.getSelection().selectAllChildren(el)
+    }
+  }
+
+  const codeInput = (id, label) => (
+    <Field label={label} htmlFor={id} error={state.error}>
+      <Input id={id} value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} className="tracking-[0.12em] tabular-nums" autoFocus />
+    </Field>
+  )
+
+  if (step === 'codes') {
+    return (
+      <div className="grid gap-3">
+        <TwoFactorOn />
+        <p className="text-sm text-muted">Save these recovery codes somewhere safe. Each one signs you in once if you lose your phone. You won’t see them again.</p>
+        <ul id="settings-recovery-codes" className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-ctl border border-line bg-surface-2 px-3 py-3 font-mono text-sm tabular-nums">
+          {recoveryCodes.map((c) => <li key={c}>{c}</li>)}
+        </ul>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={copyCodes}>{copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy codes</>}</Button>
+          <Button variant="primary" onClick={() => { setRecoveryCodes([]); reset() }}>I’ve saved them</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'setup' && setup) {
+    return (
+      <form onSubmit={confirmSetup} className="grid gap-3">
+        <p className="text-sm text-muted">Scan this with an authenticator app (like Google Authenticator, 1Password or Authy), then enter the code it shows.</p>
+        <img src={setup.qrCode} alt="QR code for your authenticator app" width={176} height={176} className="rounded-ctl border border-line bg-white p-2" />
+        <p className="text-xs text-subtle">
+          Can’t scan? Enter this key instead:{' '}
+          <span className="font-mono text-ink break-all select-all">{setup.secret.match(/.{1,4}/g).join(' ')}</span>
+        </p>
+        {codeInput('settings-2fa-confirm', '6-digit code')}
+        <div className="flex gap-2">
+          <Button type="submit" variant="primary" loading={state.busy} disabled={!code.trim()}>Turn on</Button>
+          <Button variant="ghost" onClick={reset}>Cancel</Button>
+        </div>
+      </form>
+    )
+  }
+
+  if (step === 'disable') {
+    return (
+      <form onSubmit={turnOff} className="grid gap-3">
+        {codeInput('settings-2fa-disable', 'Code from your app, or a recovery code')}
+        <div className="flex gap-2">
+          <Button type="submit" variant="danger" loading={state.busy} disabled={!code.trim()}>Turn off</Button>
+          <Button variant="ghost" onClick={reset}>Cancel</Button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="grid gap-2">
+      {enabled ? (
+        <TwoFactorOn />
+      ) : (
+        <p className="text-sm text-muted">Ask for a code from an authenticator app when you sign in, so a stolen password isn’t enough.</p>
+      )}
+      {state.error ? <p className="text-xs text-danger" role="alert">{state.error}</p> : null}
+      {enabled
+        ? <Button variant="secondary" className="justify-self-start" onClick={() => setStep('disable')}>Turn off</Button>
+        : <Button variant="secondary" className="justify-self-start" onClick={start} loading={state.busy}>Set up two-factor login</Button>}
+    </div>
+  )
+}
+
 const PROVIDER_MARKS = { google: GoogleMark, apple: AppleMark }
 
 function SocialLink({ provider, linked }) {
@@ -128,7 +264,7 @@ function SocialLink({ provider, linked }) {
 export default function SettingsSheet({ open, onClose, onSignOut }) {
   const titleId = useId()
   const [theme, setTheme] = useTheme()
-  const { user, setApartmentName, setEmailStatus } = useAuth()
+  const { user, setApartmentName, setEmailStatus, setTwoFactorEnabled } = useAuth()
   const [copied, setCopied] = useState(false)
 
   const copyCode = async () => {
@@ -177,6 +313,13 @@ export default function SettingsSheet({ open, onClose, onSignOut }) {
           {user ? <SocialLink provider="apple" linked={Boolean(user.appleLinked)} /> : null}
           <Button variant="secondary" className="justify-self-start" onClick={onSignOut}><LogOut size={16} /> Sign out</Button>
         </section>
+
+        {user ? (
+          <section className="grid gap-3">
+            <h3 className="text-xs font-semibold text-muted">Two-factor login</h3>
+            <TwoFactorSection enabled={Boolean(user.twoFactorEnabled)} onChange={setTwoFactorEnabled} />
+          </section>
+        ) : null}
       </SheetBody>
     </Sheet>
   )

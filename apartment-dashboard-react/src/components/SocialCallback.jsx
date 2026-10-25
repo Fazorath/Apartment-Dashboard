@@ -4,6 +4,7 @@ import { House, Loader2 } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
+import TwoFactorStep from './TwoFactorStep'
 import { Field, Input } from './ui/Field'
 import { completeSocialSignUp, finishSocialSignIn } from '../services/api'
 import { PROVIDERS, takeExpectedState } from '../lib/socialSignIn'
@@ -128,6 +129,8 @@ export default function SocialCallback({ provider }) {
         if (data.status === 'signed-in') {
           acceptSession(data.token, data.user)
           navigate('/', { replace: true })
+        } else if (data.status === 'two-factor') {
+          setResult({ phase: 'two-factor', twoFactorToken: data.twoFactorToken })
         } else if (data.status === 'linked') {
           setProviderLinked(provider, true)
           setEmailStatus({ email: data.user.email, emailVerified: data.user.emailVerified })
@@ -140,6 +143,21 @@ export default function SocialCallback({ provider }) {
         setResult({ phase: 'error', message: err.response?.data?.error || `${label} sign-in failed. Try again.` })
       })
   }, [params, navigate, acceptSession, setEmailStatus, setProviderLinked, provider, label])
+
+  if (result.phase === 'two-factor') {
+    return (
+      <Card title="Two-factor sign-in">
+        <TwoFactorStep
+          twoFactorToken={result.twoFactorToken}
+          // Google and Apple sign-in keep the session across restarts, as acceptSession does
+          rememberMe
+          onExpired={(message) => setResult({ phase: 'error', message })}
+          onBack={() => navigate('/', { replace: true })}
+          onSignedIn={() => navigate('/', { replace: true })}
+        />
+      </Card>
+    )
+  }
 
   if (result.phase === 'needs-apartment') {
     return (

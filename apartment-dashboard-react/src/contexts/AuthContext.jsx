@@ -54,6 +54,33 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  // Store a session token (from sign-in or the 2FA step) and show the signed-in user
+  const startSession = (data, rememberMe) => {
+    if (rememberMe) {
+      // Store in localStorage for persistent login (survives browser restart)
+      localStorage.setItem('authToken', data.token)
+      localStorage.setItem('rememberMe', 'true')
+    } else {
+      // Store in sessionStorage for session-only login (cleared when browser closes)
+      sessionStorage.setItem('authToken', data.token)
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('rememberMe')
+    }
+
+    setUser({
+      username: data.user.username,
+      apartmentCode: data.user.apartmentCode,
+      apartmentName: data.user.apartmentName,
+      email: data.user.email,
+      emailVerified: data.user.emailVerified,
+      googleLinked: data.user.googleLinked,
+      appleLinked: data.user.appleLinked,
+      isAdmin: data.user.isAdmin,
+      twoFactorEnabled: data.user.twoFactorEnabled
+    })
+  }
+
+  // With 2FA on, resolves to `{ success: false, twoFactorToken }`: pass that and a code to `completeTwoFactorLogin`
   const login = async (username, password, apartmentCode = null, rememberMe = false) => {
     try {
       const response = await axios.post('/api/auth/login', {
@@ -61,40 +88,36 @@ export const AuthProvider = ({ children }) => {
         password,
         apartmentCode
       })
-      
+
+      if (response.data.twoFactorRequired) {
+        return { success: false, twoFactorToken: response.data.twoFactorToken }
+      }
       if (response.data.success) {
-        const token = response.data.token
-        
-        // Store token based on remember me preference
-        if (rememberMe) {
-          // Store in localStorage for persistent login (survives browser restart)
-          localStorage.setItem('authToken', token)
-          localStorage.setItem('rememberMe', 'true')
-        } else {
-          // Store in sessionStorage for session-only login (cleared when browser closes)
-          sessionStorage.setItem('authToken', token)
-          localStorage.removeItem('authToken')
-          localStorage.removeItem('rememberMe')
-        }
-        
-        setUser({ 
-          username: response.data.user.username,
-          apartmentCode: response.data.user.apartmentCode,
-          apartmentName: response.data.user.apartmentName,
-          email: response.data.user.email,
-          emailVerified: response.data.user.emailVerified,
-          googleLinked: response.data.user.googleLinked,
-          appleLinked: response.data.user.appleLinked,
-          isAdmin: response.data.user.isAdmin
-        })
+        startSession(response.data, rememberMe)
         return { success: true }
       }
       return { success: false, error: 'Login failed' }
     } catch (error) {
       console.error('Login error:', error)
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Login failed'
+      }
+    }
+  }
+
+  // `reason` is 'expired' when the password step has to be redone
+  const completeTwoFactorLogin = async (twoFactorToken, code, rememberMe = false) => {
+    try {
+      const response = await axios.post('/api/auth/login/2fa', { twoFactorToken, code })
+      startSession(response.data, rememberMe)
+      return { success: true }
+    } catch (error) {
+      console.error('2FA login error:', error)
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Login failed',
+        reason: error.response?.data?.reason
       }
     }
   }
@@ -202,12 +225,16 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => (prev ? { ...prev, email, emailVerified } : prev))
   }
 
+  const setTwoFactorEnabled = (twoFactorEnabled) => {
+    setUser((prev) => (prev ? { ...prev, twoFactorEnabled } : prev))
+  }
+
   // `provider` is 'google' or 'apple'
   const setProviderLinked = (provider, linked) => {
     setUser((prev) => (prev ? { ...prev, [`${provider}Linked`]: linked } : prev))
   }
 
-  // Sign in with a session the server already issued (Google or Apple sign-in), kept across restarts
+  // Sign in with a session the server already issued (Google sign-in), kept across restarts
   const acceptSession = (token, sessionUser) => {
     localStorage.setItem('authToken', token)
     localStorage.setItem('rememberMe', 'true')
@@ -220,7 +247,8 @@ export const AuthProvider = ({ children }) => {
       emailVerified: sessionUser.emailVerified,
       googleLinked: sessionUser.googleLinked,
       appleLinked: sessionUser.appleLinked,
-      isAdmin: sessionUser.isAdmin
+      isAdmin: sessionUser.isAdmin,
+      twoFactorEnabled: sessionUser.twoFactorEnabled
     })
   }
 
@@ -228,10 +256,12 @@ export const AuthProvider = ({ children }) => {
     user,
     setApartmentName,
     setEmailStatus,
+    setTwoFactorEnabled,
     setProviderLinked,
     acceptSession,
     loading,
     login,
+    completeTwoFactorLogin,
     register,
     createApartment,
     logout,

@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import request from 'supertest'
 import app from '../app.js'
 import { outbox } from '../utils/mailer.js'
+import { totpCode } from '../utils/totp.js'
 
 const STRONG_PASSWORD = 'maple-street-kettle'
 // AL420 is on the default allowlist; the other test files open it too, so joining it always works
@@ -297,6 +298,27 @@ describe('sign in with Apple', () => {
       return res.body.token
     }
     const passwordLogin = (username) => request(app).post('/api/auth/login').send({ username, password: STRONG_PASSWORD })
+
+    it('still asks for a 2FA code when signing in with Apple', async () => {
+      const token = await registerWithPassword('appletwofactor')
+      const account = nextAppleAccount()
+      expect((await signInWithApple(account, { intent: 'link', token })).status).toBe(200)
+
+      const auth = (req) => req.set('Authorization', `Bearer ${token}`)
+      const { secret } = (await auth(request(app).post('/api/auth/2fa/setup'))).body
+      expect((await auth(request(app).post('/api/auth/2fa/confirm')).send({ code: totpCode(secret) })).status).toBe(200)
+
+      const res = await signInWithApple(account)
+      expect(res.status).toBe(200)
+      expect(res.body).toMatchObject({ status: 'two-factor', twoFactorRequired: true })
+      expect(res.body.token).toBeUndefined()
+      expect((await me(res.body.twoFactorToken)).status).toBe(401)
+
+      const done = await request(app).post('/api/auth/login/2fa')
+        .send({ twoFactorToken: res.body.twoFactorToken, code: totpCode(secret, Date.now() + 30 * 1000) })
+      expect(done.status).toBe(200)
+      expect((await me(done.body.token)).body.user.username).toBe('appletwofactor')
+    })
 
     it('links Apple to an existing account, so either sign-in method reaches it', async () => {
       const token = await registerWithPassword('applelinker', 'applelinker@icloud.com')
