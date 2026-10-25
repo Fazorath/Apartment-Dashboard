@@ -11,14 +11,19 @@ const userSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 30
   },
-  // Accounts made through Google have no password until one is set by a reset
+  // Accounts made through Google or Apple have no password until one is set by a reset
   password: {
     type: String,
-    required: function() { return !this.googleId },
+    required: function() { return !this.googleId && !this.appleId },
     minlength: 6
   },
   // Google's account id (`sub`), once Google is linked
   googleId: {
+    type: String,
+    index: { unique: true, sparse: true }
+  },
+  // Apple's account id (`sub`), once Apple is linked
+  appleId: {
     type: String,
     index: { unique: true, sparse: true }
   },
@@ -130,6 +135,7 @@ userSchema.methods.toJSON = function() {
   delete user.twoFactorLastStep
   delete user.twoFactorRecoveryCodeHashes
   delete user.googleId
+  delete user.appleId
   return user
 }
 

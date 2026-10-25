@@ -17,15 +17,9 @@ import { sendVerificationEmail, verifyEmailToken } from '../utils/emailVerificat
 import { requestPasswordReset, resetPasswordWithToken } from '../utils/passwordReset.js'
 import { startTwoFactorSetup, confirmTwoFactor, checkSecondFactor, disableTwoFactor } from '../utils/twoFactor.js'
 import { INVALID_APARTMENT_CODE, joinableApartmentName } from '../utils/apartments.js'
-import {
-  createSignupToken,
-  createState,
-  exchangeGoogleCode,
-  googleAuthUrl,
-  isGoogleConfigured,
-  readSignupToken,
-  readState
-} from '../utils/googleOAuth.js'
+import { google } from '../utils/googleOAuth.js'
+import { apple } from '../utils/appleOAuth.js'
+import mountSocialSignIn from './socialAuth.js'
 
 const router = express.Router()
 
@@ -78,6 +72,7 @@ const sessionUser = (user) => ({
   email: user.email,
   emailVerified: user.emailVerified,
   googleLinked: Boolean(user.googleId),
+  appleLinked: Boolean(user.appleId),
   apartmentCode: user.apartmentCode,
   apartmentName: user.apartmentName,
   isAdmin: user.isAdmin,
@@ -284,6 +279,7 @@ router.get('/me', async (req, res) => {
         email: user.email,
         emailVerified: user.emailVerified,
         googleLinked: Boolean(user.googleId),
+        appleLinked: Boolean(user.appleId),
         apartmentCode: user.apartmentCode,
         apartmentName: user.apartmentName,
         twoFactorEnabled: user.twoFactorEnabled,
@@ -502,6 +498,10 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   }
 })
 
+// Sign in with Google / Apple: /google/start, /callback, /complete and the same for Apple
+mountSocialSignIn(router, google, { sessionUser, startSession, trySendVerificationEmail })
+mountSocialSignIn(router, apple, { sessionUser, startSession, trySendVerificationEmail })
+
 // Start turning on two-factor login: returns a secret and QR code to scan
 router.post('/2fa/setup', authenticateToken, async (req, res) => {
   try {
@@ -560,187 +560,6 @@ router.post('/2fa/disable', authenticateToken, twoFactorCodeLimiter, async (req,
   } catch (error) {
     console.error('2FA disable error:', error)
     res.status(500).json({ error: 'Failed to turn off two-factor login' })
-  }
-})
-
-const GOOGLE_INTENTS = new Set(['signin', 'link'])
-
-// A sign-in takes up to three calls, and a household may share one IP
-const googleLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 100,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { error: 'Too many attempts. Try again in a few minutes.' }
-})
-
-const requireGoogle = (req, res, next) => {
-  if (!isGoogleConfigured()) return res.status(503).json({ error: 'Sign in with Google isn’t set up on this server.' })
-  next()
-}
-
-// Linking is for the signed-in roommate; signing in needs no session
-const authenticateIfLinking = (intent, req, res, next) => intent === 'link' ? authenticateToken(req, res, next) : next()
-
-// Google has checked its address, so a matching email counts as verified here too
-const trustGoogleEmail = (user, identity) => {
-  if (!identity.email || !identity.emailVerified || user.email !== identity.email) return
-  user.emailVerified = true
-  user.emailVerificationTokenHash = undefined
-  user.emailVerificationExpires = undefined
-}
-
-// Start a round trip to Google: to sign in, or (signed in) to link Google to this account
-router.post('/google/start', googleLimiter, requireGoogle, (req, res, next) => {
-  if (!GOOGLE_INTENTS.has(req.body.intent)) return res.status(400).json({ error: 'Unknown Google sign-in intent' })
-  authenticateIfLinking(req.body.intent, req, res, next)
-}, (req, res) => {
-  const state = createState({ intent: req.body.intent, userId: req.user?._id })
-  res.json({ success: true, url: googleAuthUrl(state), state })
-})
-
-// Google sent the browser back with a code. Signs in a returning roommate, links Google
-// for a signed-in one, or asks a newcomer to pick an apartment first.
-router.post('/google/callback', googleLimiter, requireGoogle, (req, res, next) => {
-  const state = readState(req.body.state)
-  if (!state || !GOOGLE_INTENTS.has(state.intent)) {
-    return res.status(400).json({ error: 'This Google sign-in has expired. Try again.' })
-  }
-  req.googleState = state
-  authenticateIfLinking(state.intent, req, res, next)
-}, async (req, res) => {
-  try {
-    const { intent, userId, nonce } = req.googleState
-    if (typeof req.body.code !== 'string' || !req.body.code) {
-      return res.status(400).json({ error: 'Google didn’t send a sign-in code. Try again.' })
-    }
-
-    let identity
-    try {
-      identity = await exchangeGoogleCode(req.body.code, nonce)
-    } catch (error) {
-      console.error('Google code exchange error:', error)
-      return res.status(400).json({ error: 'Google sign-in failed. Try again.' })
-    }
-
-    const User = await getUserModel()
-    const linkedUser = await User.findOne({ googleId: identity.sub })
-
-    if (intent === 'link') {
-      // The state was made for this account; a different signed-in account can't finish it
-      if (String(req.user._id) !== userId) {
-        return res.status(400).json({ error: 'This Google sign-in was started from another account.' })
-      }
-      if (linkedUser && !linkedUser._id.equals(req.user._id)) {
-        return res.status(409).json({ error: 'That Google account is already linked to another roommate.' })
-      }
-
-      const user = await User.findById(req.user._id)
-      if (user.googleId && user.googleId !== identity.sub) {
-        return res.status(409).json({ error: 'A different Google account is already linked to you.' })
-      }
-      user.googleId = identity.sub
-      if (!user.email && identity.emailVerified) user.email = identity.email
-      trustGoogleEmail(user, identity)
-      await user.save()
-      return res.json({ success: true, status: 'linked', user: sessionUser(user) })
-    }
-
-    if (linkedUser) {
-      trustGoogleEmail(linkedUser, identity)
-      // Google stands in for the password, so 2FA still asks for a code at /login/2fa
-      if (linkedUser.twoFactorEnabled) {
-        await linkedUser.save()
-        return res.json({
-          success: true,
-          status: 'two-factor',
-          twoFactorRequired: true,
-          twoFactorToken: generateTwoFactorToken(linkedUser._id, linkedUser.passwordChangedAt)
-        })
-      }
-      return res.json({ ...(await startSession(linkedUser)), status: 'signed-in' })
-    }
-
-    // Rather than a second account, or a takeover, the owner of that address links Google themselves
-    if (identity.email && await User.findOne({ email: identity.email, emailVerified: true })) {
-      return res.status(409).json({ error: 'An account already uses this email. Sign in with your password, then link Google in Settings.' })
-    }
-
-    res.json({
-      success: true,
-      status: 'needs-apartment',
-      signupToken: createSignupToken({ sub: identity.sub, email: identity.email, emailVerified: identity.emailVerified }),
-      email: identity.email,
-      name: identity.name
-    })
-  } catch (error) {
-    console.error('Google callback error:', error)
-    res.status(500).json({ error: 'Google sign-in failed' })
-  }
-})
-
-// A newcomer from Google joins or starts an apartment; only now is the account made
-router.post('/google/complete', googleLimiter, validateApartmentCode, async (req, res) => {
-  try {
-    const identity = readSignupToken(req.body.signupToken)
-    if (!identity) {
-      return res.status(400).json({ error: 'This Google sign-in has expired. Start again.' })
-    }
-
-    const { mode, apartmentCode } = req.body
-    const username = typeof req.body.username === 'string' ? req.body.username.trim() : ''
-    const apartmentName = typeof req.body.apartmentName === 'string' ? req.body.apartmentName.trim() : ''
-    if (mode !== 'join' && mode !== 'start') {
-      return res.status(400).json({ error: 'Choose to join or start a home' })
-    }
-    if (username.length < 3 || username.length > 30) {
-      return res.status(400).json({ error: 'Username must be 3–30 characters' })
-    }
-    if (mode === 'start' && (apartmentName.length < 2 || apartmentName.length > 50)) {
-      return res.status(400).json({ error: 'Apartment name must be 2–50 characters' })
-    }
-
-    const User = await getUserModel()
-
-    if (await User.findOne({ googleId: identity.sub })) {
-      return res.status(409).json({ error: 'That Google account already has an account here. Sign in with Google.' })
-    }
-    if (await User.findOne({ username })) {
-      return res.status(400).json({ error: 'Username already exists' })
-    }
-
-    let name = apartmentName
-    if (mode === 'join') {
-      name = await joinableApartmentName(User, apartmentCode)
-      if (!name) return res.status(400).json({ error: INVALID_APARTMENT_CODE })
-    } else if (await User.findOne({ apartmentCode })) {
-      return res.status(400).json({ error: 'Apartment code already exists. Please choose a different code.' })
-    }
-
-    const user = new User({
-      username,
-      googleId: identity.sub,
-      email: identity.email,
-      emailVerified: Boolean(identity.email && identity.emailVerified),
-      apartmentCode,
-      apartmentName: name
-    })
-    await user.save()
-    if (user.email && !user.emailVerified) await trySendVerificationEmail(user)
-
-    res.status(201).json({
-      success: true,
-      message: 'Account created successfully',
-      token: generateToken(user._id),
-      user: sessionUser(user)
-    })
-  } catch (error) {
-    // Two submits racing past the checks above hit the unique indexes
-    if (error.code === 11000) {
-      return res.status(409).json({ error: 'That account already exists. Try signing in with Google.' })
-    }
-    console.error('Google complete error:', error)
-    res.status(500).json({ error: 'Failed to create your account' })
   }
 })
 

@@ -6,17 +6,16 @@ import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import TwoFactorStep from './TwoFactorStep'
 import { Field, Input } from './ui/Field'
-import { completeGoogleSignUp, finishGoogleSignIn } from '../services/api'
-import { takeExpectedState } from '../lib/googleSignIn'
+import { completeSocialSignUp, finishSocialSignIn } from '../services/api'
+import { PROVIDERS, takeExpectedState } from '../lib/socialSignIn'
 
 const MODES = [
   { value: 'join', label: 'Join a home' },
   { value: 'start', label: 'Start a home' },
 ]
 
-const GOOGLE_ERRORS = {
-  access_denied: 'Google sign-in was cancelled.',
-}
+// What each provider sends back when the roommate backs out
+const CANCELLED = new Set(['access_denied', 'user_cancelled_authorize'])
 
 // A starting suggestion for the username: the part of the email before the @
 const suggestUsername = (email) => (email ? email.split('@')[0].slice(0, 30) : '')
@@ -37,8 +36,8 @@ function Card({ title, children }) {
   )
 }
 
-// A first-time Google user picks a home before their account is made
-function ChooseHome({ signup, onSignedIn }) {
+// A first-time Google or Apple user picks a home before their account is made
+function ChooseHome({ provider, signup, onSignedIn }) {
   const { generateApartmentCode } = useAuth()
   const [mode, setMode] = useState('join')
   const [form, setForm] = useState({ username: suggestUsername(signup.email), apartmentCode: '', apartmentName: '' })
@@ -56,7 +55,7 @@ function ChooseHome({ signup, onSignedIn }) {
     event.preventDefault()
     setStatus({ saving: true, error: '' })
     try {
-      const result = await completeGoogleSignUp({ signupToken: signup.signupToken, mode, ...form })
+      const result = await completeSocialSignUp(provider, { signupToken: signup.signupToken, mode, ...form })
       onSignedIn(result)
     } catch (err) {
       setStatus({ saving: false, error: err.response?.data?.error || 'Couldn’t create your account. Try again.' })
@@ -66,29 +65,29 @@ function ChooseHome({ signup, onSignedIn }) {
   return (
     <form onSubmit={submit} className="grid gap-5" noValidate>
       <p className="text-muted">
-        {signup.email ? <>Signed in to Google as <b className="font-semibold text-ink">{signup.email}</b>. </> : null}
+        {signup.email ? <>Signed in to {PROVIDERS[provider].label} as <b className="font-semibold text-ink">{signup.email}</b>. </> : null}
         Now join your roommates’ home or start a new one.
       </p>
 
       <Segmented options={MODES} value={mode} onChange={(next) => { setMode(next); setStatus({ saving: false, error: '' }) }} label="Choose an option" stretch />
 
       {mode === 'start' ? (
-        <Field label="Home name" htmlFor="google-home">
-          <Input id="google-home" name="apartmentName" value={form.apartmentName} onChange={handleChange} placeholder="e.g. Maple Street" maxLength={50} required />
+        <Field label="Home name" htmlFor="social-home">
+          <Input id="social-home" name="apartmentName" value={form.apartmentName} onChange={handleChange} placeholder="e.g. Maple Street" maxLength={50} required />
         </Field>
       ) : null}
 
-      <Field label="Username" htmlFor="google-username" hint="Your roommates see this name.">
-        <Input id="google-username" name="username" value={form.username} onChange={handleChange} autoComplete="username" autoCapitalize="none" maxLength={30} required />
+      <Field label="Username" htmlFor="social-username" hint="Your roommates see this name.">
+        <Input id="social-username" name="username" value={form.username} onChange={handleChange} autoComplete="username" autoCapitalize="none" maxLength={30} required />
       </Field>
 
       <Field
         label="Home code"
-        htmlFor="google-code"
+        htmlFor="social-code"
         hint={mode === 'start' ? 'Roommates use this code to join. 4–8 letters or numbers.' : 'Ask a roommate for the 4–8 character code.'}
       >
         <div className="flex gap-2">
-          <Input id="google-code" name="apartmentCode" value={form.apartmentCode} onChange={handleChange} className="uppercase tracking-[0.08em]" autoCapitalize="characters" required />
+          <Input id="social-code" name="apartmentCode" value={form.apartmentCode} onChange={handleChange} className="uppercase tracking-[0.08em]" autoCapitalize="characters" required />
           {mode === 'start' ? <Button variant="secondary" size="lg" onClick={handleGenerateCode}>Generate</Button> : null}
         </div>
       </Field>
@@ -100,11 +99,12 @@ function ChooseHome({ signup, onSignedIn }) {
   )
 }
 
-// Google sends the browser back here with a code, for signing in or for linking
-export default function GoogleCallback() {
+// The provider sends the browser back here with a code, for signing in or for linking
+export default function SocialCallback({ provider }) {
+  const { label } = PROVIDERS[provider]
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const { user, acceptSession, setEmailStatus, setGoogleLinked } = useAuth()
+  const { user, acceptSession, setEmailStatus, setProviderLinked } = useAuth()
   const [result, setResult] = useState({ phase: 'pending' })
   // Codes are single-use, so StrictMode's second effect run must not send it again
   const handled = useRef(false)
@@ -113,18 +113,18 @@ export default function GoogleCallback() {
     if (handled.current) return
     handled.current = true
 
-    const expectedState = takeExpectedState()
-    const googleError = params.get('error')
-    if (googleError) {
-      setResult({ phase: 'error', message: GOOGLE_ERRORS[googleError] || 'Google couldn’t sign you in. Try again.' })
+    const expectedState = takeExpectedState(provider)
+    const providerError = params.get('error')
+    if (providerError) {
+      setResult({ phase: 'error', message: CANCELLED.has(providerError) ? `${label} sign-in was cancelled.` : `${label} couldn’t sign you in. Try again.` })
       return
     }
     if (!params.get('code') || !expectedState || params.get('state') !== expectedState) {
-      setResult({ phase: 'error', message: 'This Google sign-in wasn’t started here, or has already been used. Try again.' })
+      setResult({ phase: 'error', message: `This ${label} sign-in wasn’t started here, or has already been used. Try again.` })
       return
     }
 
-    finishGoogleSignIn(params.get('code'), params.get('state'))
+    finishSocialSignIn(provider, params.get('code'), params.get('state'))
       .then((data) => {
         if (data.status === 'signed-in') {
           acceptSession(data.token, data.user)
@@ -132,7 +132,7 @@ export default function GoogleCallback() {
         } else if (data.status === 'two-factor') {
           setResult({ phase: 'two-factor', twoFactorToken: data.twoFactorToken })
         } else if (data.status === 'linked') {
-          setGoogleLinked(true)
+          setProviderLinked(provider, true)
           setEmailStatus({ email: data.user.email, emailVerified: data.user.emailVerified })
           navigate('/settings', { replace: true })
         } else {
@@ -140,16 +140,16 @@ export default function GoogleCallback() {
         }
       })
       .catch((err) => {
-        setResult({ phase: 'error', message: err.response?.data?.error || 'Google sign-in failed. Try again.' })
+        setResult({ phase: 'error', message: err.response?.data?.error || `${label} sign-in failed. Try again.` })
       })
-  }, [params, navigate, acceptSession, setEmailStatus, setGoogleLinked])
+  }, [params, navigate, acceptSession, setEmailStatus, setProviderLinked, provider, label])
 
   if (result.phase === 'two-factor') {
     return (
       <Card title="Two-factor sign-in">
         <TwoFactorStep
           twoFactorToken={result.twoFactorToken}
-          // Google sign-in keeps the session across restarts, as acceptSession does
+          // Google and Apple sign-in keep the session across restarts, as acceptSession does
           rememberMe
           onExpired={(message) => setResult({ phase: 'error', message })}
           onBack={() => navigate('/', { replace: true })}
@@ -163,6 +163,7 @@ export default function GoogleCallback() {
     return (
       <Card title="Choose your home">
         <ChooseHome
+          provider={provider}
           signup={result.signup}
           onSignedIn={(data) => {
             acceptSession(data.token, data.user)
@@ -174,7 +175,7 @@ export default function GoogleCallback() {
   }
 
   return (
-    <Card title="Continue with Google">
+    <Card title={`Continue with ${label}`}>
       <div role="status" aria-live="polite">
         {result.phase === 'pending' ? (
           <p className="flex items-center gap-2 text-muted"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Finishing sign-in…</p>

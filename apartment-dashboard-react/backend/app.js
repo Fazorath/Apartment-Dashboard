@@ -6,6 +6,7 @@ import taskRoutes from './routes/tasks.js'
 import apartmentRoutes from './routes/apartment.js'
 import adminRoutes from './routes/admin.js'
 import { authenticateToken, requireAdmin } from './middleware/auth.js'
+import { appleReturn } from './utils/appleOAuth.js'
 
 const app = express()
 
@@ -18,6 +19,8 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(limiter)
+// Apple posts the browser here from appleid.apple.com, which CORS below would turn away
+app.post('/api/auth/apple/return', express.urlencoded({ extended: false }), appleReturn)
 // Allow multiple dev origins
 const allowedOrigins = [
   process.env.FRONTEND_URL,

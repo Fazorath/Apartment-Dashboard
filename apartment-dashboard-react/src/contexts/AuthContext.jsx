@@ -74,6 +74,7 @@ export const AuthProvider = ({ children }) => {
       email: data.user.email,
       emailVerified: data.user.emailVerified,
       googleLinked: data.user.googleLinked,
+      appleLinked: data.user.appleLinked,
       isAdmin: data.user.isAdmin,
       twoFactorEnabled: data.user.twoFactorEnabled
     })
@@ -228,8 +229,9 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => (prev ? { ...prev, twoFactorEnabled } : prev))
   }
 
-  const setGoogleLinked = (googleLinked) => {
-    setUser((prev) => (prev ? { ...prev, googleLinked } : prev))
+  // `provider` is 'google' or 'apple'
+  const setProviderLinked = (provider, linked) => {
+    setUser((prev) => (prev ? { ...prev, [`${provider}Linked`]: linked } : prev))
   }
 
   // Sign in with a session the server already issued (Google sign-in), kept across restarts
@@ -244,6 +246,7 @@ export const AuthProvider = ({ children }) => {
       email: sessionUser.email,
       emailVerified: sessionUser.emailVerified,
       googleLinked: sessionUser.googleLinked,
+      appleLinked: sessionUser.appleLinked,
       isAdmin: sessionUser.isAdmin,
       twoFactorEnabled: sessionUser.twoFactorEnabled
     })
@@ -254,7 +257,7 @@ export const AuthProvider = ({ children }) => {
     setApartmentName,
     setEmailStatus,
     setTwoFactorEnabled,
-    setGoogleLinked,
+    setProviderLinked,
     acceptSession,
     loading,
     login,
