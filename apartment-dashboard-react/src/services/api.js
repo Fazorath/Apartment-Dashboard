@@ -114,3 +114,19 @@ export const resetPassword = async (token, password) => {
   const response = await axios.post('/api/auth/reset-password', { token, password })
   return response.data
 }
+
+// Sign in with Google API
+export const startGoogleSignIn = async (intent) => {
+  const response = await axios.post('/api/auth/google/start', { intent })
+  return response.data
+}
+
+export const finishGoogleSignIn = async (code, state) => {
+  const response = await axios.post('/api/auth/google/callback', { code, state })
+  return response.data
+}
+
+export const completeGoogleSignUp = async (details) => {
+  const response = await axios.post('/api/auth/google/complete', details)
+  return response.data
+}

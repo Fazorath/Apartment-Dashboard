@@ -83,6 +83,7 @@ export const AuthProvider = ({ children }) => {
           apartmentName: response.data.user.apartmentName,
           email: response.data.user.email,
           emailVerified: response.data.user.emailVerified,
+          googleLinked: response.data.user.googleLinked,
           isAdmin: response.data.user.isAdmin
         })
         return { success: true }
@@ -200,10 +201,32 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => (prev ? { ...prev, email, emailVerified } : prev))
   }
 
+  const setGoogleLinked = (googleLinked) => {
+    setUser((prev) => (prev ? { ...prev, googleLinked } : prev))
+  }
+
+  // Sign in with a session the server already issued (Google sign-in), kept across restarts
+  const acceptSession = (token, sessionUser) => {
+    localStorage.setItem('authToken', token)
+    localStorage.setItem('rememberMe', 'true')
+    sessionStorage.removeItem('authToken')
+    setUser({
+      username: sessionUser.username,
+      apartmentCode: sessionUser.apartmentCode,
+      apartmentName: sessionUser.apartmentName,
+      email: sessionUser.email,
+      emailVerified: sessionUser.emailVerified,
+      googleLinked: sessionUser.googleLinked,
+      isAdmin: sessionUser.isAdmin
+    })
+  }
+
   const value = {
     user,
     setApartmentName,
     setEmailStatus,
+    setGoogleLinked,
+    acceptSession,
     loading,
     login,
     register,
