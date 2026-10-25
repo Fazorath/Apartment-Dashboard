@@ -84,6 +84,7 @@ export const AuthProvider = ({ children }) => {
           email: response.data.user.email,
           emailVerified: response.data.user.emailVerified,
           googleLinked: response.data.user.googleLinked,
+          appleLinked: response.data.user.appleLinked,
           isAdmin: response.data.user.isAdmin
         })
         return { success: true }
@@ -201,11 +202,12 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => (prev ? { ...prev, email, emailVerified } : prev))
   }
 
-  const setGoogleLinked = (googleLinked) => {
-    setUser((prev) => (prev ? { ...prev, googleLinked } : prev))
+  // `provider` is 'google' or 'apple'
+  const setProviderLinked = (provider, linked) => {
+    setUser((prev) => (prev ? { ...prev, [`${provider}Linked`]: linked } : prev))
   }
 
-  // Sign in with a session the server already issued (Google sign-in), kept across restarts
+  // Sign in with a session the server already issued (Google or Apple sign-in), kept across restarts
   const acceptSession = (token, sessionUser) => {
     localStorage.setItem('authToken', token)
     localStorage.setItem('rememberMe', 'true')
@@ -217,6 +219,7 @@ export const AuthProvider = ({ children }) => {
       email: sessionUser.email,
       emailVerified: sessionUser.emailVerified,
       googleLinked: sessionUser.googleLinked,
+      appleLinked: sessionUser.appleLinked,
       isAdmin: sessionUser.isAdmin
     })
   }
@@ -225,7 +228,7 @@ export const AuthProvider = ({ children }) => {
     user,
     setApartmentName,
     setEmailStatus,
-    setGoogleLinked,
+    setProviderLinked,
     acceptSession,
     loading,
     login,

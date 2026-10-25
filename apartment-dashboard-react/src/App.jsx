@@ -7,7 +7,7 @@ import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import VerifyEmail from './components/VerifyEmail'
 import { ForgotPassword, ResetPassword } from './components/PasswordRecovery'
-import GoogleCallback from './components/GoogleCallback'
+import SocialCallback from './components/SocialCallback'
 
 function App() {
   return (
@@ -38,8 +38,9 @@ function AppRoutes() {
   if (location.pathname === '/reset-password') return <ResetPassword />
   if (!user && location.pathname === '/forgot-password') return <ForgotPassword />
 
-  // Google returns here both to sign in and, for a signed-in roommate, to link
-  if (location.pathname === '/auth/google/callback') return <GoogleCallback />
+  // Google and Apple return here both to sign in and, for a signed-in roommate, to link
+  if (location.pathname === '/auth/google/callback') return <SocialCallback provider="google" />
+  if (location.pathname === '/auth/apple/callback') return <SocialCallback provider="apple" />
 
   if (!user) return <Login />
 

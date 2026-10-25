@@ -6,7 +6,8 @@ import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import GoogleMark from './ui/GoogleMark'
-import { beginGoogleSignIn } from '../lib/googleSignIn'
+import AppleMark from './ui/AppleMark'
+import { beginSocialSignIn } from '../lib/socialSignIn'
 import { checkPassword, PASSWORD_HINT } from '../../backend/utils/passwordPolicy.js'
 
 const MODES = [
@@ -32,7 +33,8 @@ const Login = () => {
   const [errorReasons, setErrorReasons] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
-  const [googleLoading, setGoogleLoading] = useState(false)
+  // Which provider's button is waiting on the redirect, if any
+  const [socialLoading, setSocialLoading] = useState(null)
 
   const { login, register, createApartment, generateApartmentCode } = useAuth()
 
@@ -71,15 +73,15 @@ const Login = () => {
     else setError(result.error)
   }
 
-  // New Google users pick their home after Google, so this works from any tab
-  const handleGoogle = async () => {
-    setGoogleLoading(true)
+  // New Google and Apple users pick their home after the provider, so this works from any tab
+  const handleSocial = async (provider) => {
+    setSocialLoading(provider)
     setError('')
     setErrorReasons([])
-    const failure = await beginGoogleSignIn('signin')
+    const failure = await beginSocialSignIn(provider, 'signin')
     if (failure) {
       setError(failure)
-      setGoogleLoading(false)
+      setSocialLoading(null)
     }
   }
 
@@ -179,9 +181,14 @@ const Login = () => {
             <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
           </div>
 
-          <Button variant="secondary" size="lg" onClick={handleGoogle} loading={googleLoading}>
-            {googleLoading ? null : <GoogleMark />} Continue with Google
-          </Button>
+          <div className="grid gap-3">
+            <Button variant="secondary" size="lg" onClick={() => handleSocial('google')} loading={socialLoading === 'google'} disabled={Boolean(socialLoading)}>
+              {socialLoading === 'google' ? null : <GoogleMark />} Continue with Google
+            </Button>
+            <Button variant="secondary" size="lg" onClick={() => handleSocial('apple')} loading={socialLoading === 'apple'} disabled={Boolean(socialLoading)}>
+              {socialLoading === 'apple' ? null : <AppleMark />} Continue with Apple
+            </Button>
+          </div>
         </form>
       </main>
     </div>

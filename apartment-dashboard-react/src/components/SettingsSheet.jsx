@@ -7,8 +7,9 @@ import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
 import useAuth from '../hooks/useAuth'
 import { resendVerificationEmail, updateApartmentName, updateEmail } from '../services/api'
-import { beginGoogleSignIn } from '../lib/googleSignIn'
+import { PROVIDERS, beginSocialSignIn } from '../lib/socialSignIn'
 import GoogleMark from './ui/GoogleMark'
+import AppleMark from './ui/AppleMark'
 
 function HomeNameForm({ initialName, onSaved }) {
   const [name, setName] = useState(initialName)
@@ -97,25 +98,29 @@ function EmailForm({ email, emailVerified, onSaved }) {
   )
 }
 
-function GoogleLink({ linked }) {
+const PROVIDER_MARKS = { google: GoogleMark, apple: AppleMark }
+
+function SocialLink({ provider, linked }) {
   const [status, setStatus] = useState({ starting: false, error: '' })
+  const { label } = PROVIDERS[provider]
+  const Mark = PROVIDER_MARKS[provider]
 
   const link = async () => {
     setStatus({ starting: true, error: '' })
-    const failure = await beginGoogleSignIn('link')
+    const failure = await beginSocialSignIn(provider, 'link')
     if (failure) setStatus({ starting: false, error: failure })
   }
 
   if (linked) {
-    return <p className="flex items-center gap-1.5 text-sm text-muted"><GoogleMark size={16} /> Google is linked. You can sign in with it or your password.</p>
+    return <p className="flex items-center gap-1.5 text-sm text-muted"><Mark size={16} /> {label} is linked. You can sign in with it or your password.</p>
   }
 
   return (
     <div className="grid gap-1.5">
       <Button variant="secondary" className="justify-self-start" onClick={link} loading={status.starting}>
-        {status.starting ? null : <GoogleMark size={16} />} Link Google
+        {status.starting ? null : <Mark size={16} />} Link {label}
       </Button>
-      {status.error ? <p className="text-xs text-danger" role="alert">{status.error}</p> : <p className="text-xs text-subtle">Then you can sign in with Google too.</p>}
+      {status.error ? <p className="text-xs text-danger" role="alert">{status.error}</p> : <p className="text-xs text-subtle">Then you can sign in with {label} too.</p>}
     </div>
   )
 }
@@ -168,7 +173,8 @@ export default function SettingsSheet({ open, onClose, onSignOut }) {
           <h3 className="text-xs font-semibold text-muted">Account</h3>
           <p>Signed in as <b className="font-semibold">{user?.username}</b></p>
           {user ? <EmailForm email={user.email || ''} emailVerified={Boolean(user.emailVerified)} onSaved={setEmailStatus} /> : null}
-          {user ? <GoogleLink linked={Boolean(user.googleLinked)} /> : null}
+          {user ? <SocialLink provider="google" linked={Boolean(user.googleLinked)} /> : null}
+          {user ? <SocialLink provider="apple" linked={Boolean(user.appleLinked)} /> : null}
           <Button variant="secondary" className="justify-self-start" onClick={onSignOut}><LogOut size={16} /> Sign out</Button>
         </section>
       </SheetBody>
