@@ -1,12 +1,10 @@
 import crypto from 'crypto'
 import { send } from './mailer.js'
+import { escapeHtml, frontendLink } from './emailLinks.js'
 import { hashToken } from './emailVerification.js'
 import { checkPassword } from './passwordPolicy.js'
 
 const TOKEN_TTL_MS = 60 * 60 * 1000
-
-const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch])
 
 /**
  * Give the user a fresh reset token, save it and email the link.
@@ -18,8 +16,7 @@ export const sendPasswordResetEmail = async (user) => {
   user.passwordResetExpires = new Date(Date.now() + TOKEN_TTL_MS)
   await user.save()
 
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
-  const link = `${frontendUrl}/reset-password?token=${token}`
+  const link = frontendLink(`/reset-password?token=${token}`)
 
   await send({
     to: user.email,
@@ -58,6 +55,13 @@ export const resetPasswordWithToken = async (User, token, password) => {
 
   const check = checkPassword(password, { username: user.username })
   if (!check.ok) return { ok: false, reason: 'weak', reasons: check.reasons }
+
+  // Claim the token atomically, so two requests with the same link can't both win
+  const claim = await User.updateOne(
+    { _id: user._id, passwordResetTokenHash: user.passwordResetTokenHash },
+    { $unset: { passwordResetTokenHash: 1, passwordResetExpires: 1 } }
+  )
+  if (claim.modifiedCount === 0) return { ok: false, reason: 'invalid' }
 
   user.password = password
   user.passwordResetTokenHash = undefined

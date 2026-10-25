@@ -121,7 +121,8 @@ export function ResetPassword() {
           <BadgeCheck size={18} className="mt-0.5 flex-none" aria-hidden="true" />
           <span>Your password is changed and other devices are signed out. Sign in with the new one.</span>
         </p>
-        <Button variant="primary" size="lg" onClick={() => navigate('/', { replace: true })}>Go to sign in</Button>
+        {/* A full load, so a session still open on this device is re-checked and signed out */}
+        <Button variant="primary" size="lg" onClick={() => window.location.assign('/')}>Go to sign in</Button>
       </Shell>
     )
   }

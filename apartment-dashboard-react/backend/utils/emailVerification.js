@@ -1,10 +1,8 @@
 import crypto from 'crypto'
 import { send } from './mailer.js'
+import { escapeHtml, frontendLink } from './emailLinks.js'
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000
-
-const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch])
 
 // Only this hash is stored, so a database leak doesn't hand out working links
 export const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex')
@@ -19,8 +17,7 @@ export const sendVerificationEmail = async (user) => {
   user.emailVerificationExpires = new Date(Date.now() + TOKEN_TTL_MS)
   await user.save()
 
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
-  const link = `${frontendUrl}/verify-email?token=${token}`
+  const link = frontendLink(`/verify-email?token=${token}`)
 
   await send({
     to: user.email,
