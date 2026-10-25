@@ -49,6 +49,26 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: {
     type: Date
   },
+  // Two-factor login (see utils/twoFactor.js). Recovery codes are stored only as hashes.
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorSecret: {
+    type: String
+  },
+  // Set during setup, until the first code is confirmed
+  twoFactorPendingSecret: {
+    type: String
+  },
+  // The last time step a code was accepted for, so a code can't be replayed
+  twoFactorLastStep: {
+    type: Number
+  },
+  twoFactorRecoveryCodeHashes: {
+    type: [String],
+    default: undefined
+  },
   apartmentCode: {
     type: String,
     required: true,
@@ -105,6 +125,10 @@ userSchema.methods.toJSON = function() {
   delete user.passwordResetTokenHash
   delete user.passwordResetExpires
   delete user.passwordChangedAt
+  delete user.twoFactorSecret
+  delete user.twoFactorPendingSecret
+  delete user.twoFactorLastStep
+  delete user.twoFactorRecoveryCodeHashes
   delete user.googleId
   return user
 }

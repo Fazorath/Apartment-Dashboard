@@ -20,7 +20,7 @@ export const authenticateToken = async (req, res, next) => {
     const User = await getUserModel()
     const user = await User.findById(decoded.userId).select('-password')
     
-    if (!user || isTokenStale(decoded, user)) {
+    if (!user || !isSessionToken(decoded) || isTokenStale(decoded, user)) {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
@@ -100,6 +100,11 @@ const passwordChangeStamp = (passwordChangedAt) => passwordChangedAt ? new Date(
 export const isTokenStale = (decoded, user) => (decoded.pwc ?? 0) !== passwordChangeStamp(user.passwordChangedAt)
 
 /**
+ * True for a full session token, false for a short-lived "2FA pending" one
+ */
+export const isSessionToken = (decoded) => decoded.purpose === undefined
+
+/**
  * Generate JWT token with user ID
  */
 export const generateToken = (userId, passwordChangedAt) => {
@@ -108,6 +113,33 @@ export const generateToken = (userId, passwordChangedAt) => {
     process.env.JWT_SECRET || 'fallback-secret',
     { expiresIn: '7d' }
   )
+}
+
+const TWO_FACTOR_PURPOSE = '2fa-pending'
+
+/**
+ * A short-lived token proving the password was right, traded for a session at
+ * /login/2fa along with a code. It carries `pwc` too, so a reset voids it.
+ */
+export const generateTwoFactorToken = (userId, passwordChangedAt) => {
+  return jwt.sign(
+    { userId, pwc: passwordChangeStamp(passwordChangedAt), purpose: TWO_FACTOR_PURPOSE },
+    process.env.JWT_SECRET || 'fallback-secret',
+    { expiresIn: '10m' }
+  )
+}
+
+/**
+ * The decoded payload of a valid 2FA pending token, or null
+ */
+export const verifyTwoFactorToken = (token) => {
+  if (typeof token !== 'string' || !token) return null
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
+    return decoded.purpose === TWO_FACTOR_PURPOSE ? decoded : null
+  } catch {
+    return null
+  }
 }
 
 export const requireAdmin = async (req, res, next) => {

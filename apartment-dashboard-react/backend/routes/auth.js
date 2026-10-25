@@ -4,6 +4,9 @@ import { getUserModel } from '../models/User.js'
 import {
   authenticateToken,
   generateToken,
+  generateTwoFactorToken,
+  verifyTwoFactorToken,
+  isSessionToken,
   isTokenStale,
   validateApartmentCode,
   checkApartmentCodeAvailability,
@@ -12,6 +15,7 @@ import {
 import { checkPassword } from '../utils/passwordPolicy.js'
 import { sendVerificationEmail, verifyEmailToken } from '../utils/emailVerification.js'
 import { requestPasswordReset, resetPasswordWithToken } from '../utils/passwordReset.js'
+import { startTwoFactorSetup, confirmTwoFactor, checkSecondFactor, disableTwoFactor } from '../utils/twoFactor.js'
 import { INVALID_APARTMENT_CODE, joinableApartmentName } from '../utils/apartments.js'
 import {
   createSignupToken,
@@ -76,7 +80,35 @@ const sessionUser = (user) => ({
   googleLinked: Boolean(user.googleId),
   apartmentCode: user.apartmentCode,
   apartmentName: user.apartmentName,
-  isAdmin: user.isAdmin
+  isAdmin: user.isAdmin,
+  twoFactorEnabled: user.twoFactorEnabled
+})
+
+// Record the login and issue a session token
+const startSession = async (user) => {
+  user.lastLogin = new Date()
+  await user.save()
+
+  return {
+    success: true,
+    message: 'Login successful',
+    token: generateToken(user._id, user.passwordChangedAt),
+    user: sessionUser(user)
+  }
+}
+
+// Wrong 2FA codes, counted per account across sign-in, setup and turning it off, so
+// fresh pending tokens don't buy more guesses. Successful codes don't count.
+const twoFactorCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => String(req.user?._id ?? verifyTwoFactorToken(req.body?.twoFactorToken)?.userId),
+  // A missing or bad pending token is turned away before any code is checked
+  skip: (req) => !req.user && !verifyTwoFactorToken(req.body?.twoFactorToken),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many wrong codes. Try again in a few minutes.' }
 })
 
 // Register
@@ -177,21 +209,46 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    // Update last login
-    user.lastLogin = new Date()
-    await user.save()
+    // With 2FA on, the password alone only earns a pending token for /login/2fa
+    if (user.twoFactorEnabled) {
+      return res.json({
+        success: true,
+        twoFactorRequired: true,
+        twoFactorToken: generateTwoFactorToken(user._id, user.passwordChangedAt)
+      })
+    }
 
-    // Generate token
-    const token = generateToken(user._id, user.passwordChangedAt)
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: sessionUser(user)
-    })
+    res.json(await startSession(user))
   } catch (error) {
     console.error('Login error:', error)
+    res.status(500).json({ error: 'Login failed' })
+  }
+})
+
+const TWO_FACTOR_EXPIRED = { error: 'Your sign-in timed out. Enter your password again.', reason: 'expired' }
+
+// Second login step: trade a 2FA pending token and a code (from the app, or a recovery code) for a session
+router.post('/login/2fa', twoFactorCodeLimiter, async (req, res) => {
+  try {
+    const decoded = verifyTwoFactorToken(req.body.twoFactorToken)
+    if (!decoded) {
+      return res.status(401).json(TWO_FACTOR_EXPIRED)
+    }
+
+    const User = await getUserModel()
+    const user = await User.findById(decoded.userId)
+    if (!user || !user.twoFactorEnabled || isTokenStale(decoded, user)) {
+      return res.status(401).json(TWO_FACTOR_EXPIRED)
+    }
+
+    const check = await checkSecondFactor(User, user, req.body.code)
+    if (!check.ok) {
+      return res.status(401).json({ error: 'That code didn’t work. Try a new code from your app, or an unused recovery code.', reason: 'invalid' })
+    }
+
+    res.json(await startSession(user))
+  } catch (error) {
+    console.error('2FA login error:', error)
     res.status(500).json({ error: 'Login failed' })
   }
 })
@@ -215,7 +272,7 @@ router.get('/me', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'User not found' })
     }
-    if (isTokenStale(decoded, user)) {
+    if (!isSessionToken(decoded) || isTokenStale(decoded, user)) {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
@@ -229,6 +286,7 @@ router.get('/me', async (req, res) => {
         googleLinked: Boolean(user.googleId),
         apartmentCode: user.apartmentCode,
         apartmentName: user.apartmentName,
+        twoFactorEnabled: user.twoFactorEnabled,
         lastLogin: user.lastLogin
       }
     })
@@ -444,6 +502,67 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   }
 })
 
+// Start turning on two-factor login: returns a secret and QR code to scan
+router.post('/2fa/setup', authenticateToken, async (req, res) => {
+  try {
+    const User = await getUserModel()
+    const user = await User.findById(req.user._id)
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ error: 'Two-factor login is already on' })
+    }
+
+    res.json({ success: true, ...(await startTwoFactorSetup(user)) })
+  } catch (error) {
+    console.error('2FA setup error:', error)
+    res.status(500).json({ error: 'Failed to start two-factor setup' })
+  }
+})
+
+const CONFIRM_2FA_ERRORS = {
+  enabled: 'Two-factor login is already on',
+  'no-setup': 'Start two-factor setup first',
+  invalid: 'That code didn’t match. Check your authenticator app and try again.'
+}
+
+// Finish turning on two-factor login with a code from the app. Recovery codes are shown only here.
+router.post('/2fa/confirm', authenticateToken, twoFactorCodeLimiter, async (req, res) => {
+  try {
+    const User = await getUserModel()
+    const user = await User.findById(req.user._id)
+    const result = await confirmTwoFactor(user, req.body.code)
+    if (!result.ok) {
+      return res.status(400).json({ error: CONFIRM_2FA_ERRORS[result.reason], reason: result.reason })
+    }
+
+    res.json({ success: true, recoveryCodes: result.recoveryCodes })
+  } catch (error) {
+    console.error('2FA confirm error:', error)
+    res.status(500).json({ error: 'Failed to turn on two-factor login' })
+  }
+})
+
+const DISABLE_2FA_ERRORS = {
+  'not-enabled': 'Two-factor login is already off',
+  invalid: 'That code didn’t work. Use a code from your app or an unused recovery code.'
+}
+
+// Turn two-factor login off, after a code from the app or a recovery code
+router.post('/2fa/disable', authenticateToken, twoFactorCodeLimiter, async (req, res) => {
+  try {
+    const User = await getUserModel()
+    const user = await User.findById(req.user._id)
+    const result = await disableTwoFactor(User, user, req.body.code)
+    if (!result.ok) {
+      return res.status(400).json({ error: DISABLE_2FA_ERRORS[result.reason], reason: result.reason })
+    }
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('2FA disable error:', error)
+    res.status(500).json({ error: 'Failed to turn off two-factor login' })
+  }
+})
+
 const GOOGLE_INTENTS = new Set(['signin', 'link'])
 
 // A sign-in takes up to three calls, and a household may share one IP
@@ -529,14 +648,17 @@ router.post('/google/callback', googleLimiter, requireGoogle, (req, res, next) =
 
     if (linkedUser) {
       trustGoogleEmail(linkedUser, identity)
-      linkedUser.lastLogin = new Date()
-      await linkedUser.save()
-      return res.json({
-        success: true,
-        status: 'signed-in',
-        token: generateToken(linkedUser._id, linkedUser.passwordChangedAt),
-        user: sessionUser(linkedUser)
-      })
+      // Google stands in for the password, so 2FA still asks for a code at /login/2fa
+      if (linkedUser.twoFactorEnabled) {
+        await linkedUser.save()
+        return res.json({
+          success: true,
+          status: 'two-factor',
+          twoFactorRequired: true,
+          twoFactorToken: generateTwoFactorToken(linkedUser._id, linkedUser.passwordChangedAt)
+        })
+      }
+      return res.json({ ...(await startSession(linkedUser)), status: 'signed-in' })
     }
 
     // Rather than a second account, or a takeover, the owner of that address links Google themselves

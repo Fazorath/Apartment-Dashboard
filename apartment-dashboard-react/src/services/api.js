@@ -115,6 +115,22 @@ export const resetPassword = async (token, password) => {
   return response.data
 }
 
+// Two-factor login API
+export const setupTwoFactor = async () => {
+  const response = await axios.post('/api/auth/2fa/setup')
+  return response.data
+}
+
+export const confirmTwoFactor = async (code) => {
+  const response = await axios.post('/api/auth/2fa/confirm', { code })
+  return response.data
+}
+
+export const disableTwoFactor = async (code) => {
+  const response = await axios.post('/api/auth/2fa/disable', { code })
+  return response.data
+}
+
 // Sign in with Google API
 export const startGoogleSignIn = async (intent) => {
   const response = await axios.post('/api/auth/google/start', { intent })
