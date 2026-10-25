@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
+import { outbox } from '../utils/mailer.js'
 
 const STRONG_PASSWORD = 'maple-street-kettle'
 // AL420 is on the default allowlist; the other test files open it too, so joining it always works
@@ -15,24 +16,31 @@ const nextGoogleAccount = (overrides = {}) => {
 
 const base64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
 
+// Like Google, the ID token echoes the nonce from the consent URL the browser was sent to
+let consentNonce
+
 // Stands in for Google's token endpoint: any code is exchanged for an ID token for `account`
 const googleSignsInAs = (account) => {
-  const idToken = [
-    base64url({ alg: 'RS256', typ: 'JWT' }),
-    base64url({ iss: 'https://accounts.google.com', aud: CLIENT_ID, exp: Math.floor(Date.now() / 1000) + 3600, ...account }),
-    'signature'
-  ].join('.')
-  const fetch = vi.fn(async () => new Response(JSON.stringify({ access_token: 'access', id_token: idToken }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  }))
+  const fetch = vi.fn(async () => {
+    const idToken = [
+      base64url({ alg: 'RS256', typ: 'JWT' }),
+      base64url({ iss: 'https://accounts.google.com', aud: CLIENT_ID, exp: Math.floor(Date.now() / 1000) + 3600, nonce: consentNonce, ...account }),
+      'signature'
+    ].join('.')
+    return new Response(JSON.stringify({ access_token: 'access', id_token: idToken }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  })
   vi.stubGlobal('fetch', fetch)
   return fetch
 }
 
-const start = (intent, token) => {
+const start = async (intent, token) => {
   const req = request(app).post('/api/auth/google/start').send({ intent })
-  return token ? req.set('Authorization', `Bearer ${token}`) : req
+  const res = await (token ? req.set('Authorization', `Bearer ${token}`) : req)
+  if (res.body.url) consentNonce = new URL(res.body.url).searchParams.get('nonce')
+  return res
 }
 const callback = (body, token) => {
   const req = request(app).post('/api/auth/google/callback').send(body)
@@ -40,6 +48,7 @@ const callback = (body, token) => {
 }
 const complete = (body) => request(app).post('/api/auth/google/complete').send(body)
 const me = (token) => request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`)
+const changeEmail = (token, email) => request(app).put('/api/auth/email').set('Authorization', `Bearer ${token}`).send({ email })
 
 // Runs the browser's round trip: start, consent at Google, come back with a code
 const signInWithGoogle = async (account, { intent = 'signin', token } = {}) => {
@@ -162,6 +171,29 @@ describe('sign in with Google', () => {
     expect((await callback({ code: 'auth-code', state: started.body.state })).status).toBe(400)
   })
 
+  it('rejects an ID token minted for a different sign-in attempt', async () => {
+    googleSignsInAs(nextGoogleAccount({ nonce: 'from-another-attempt' }))
+    const started = await start('signin')
+    expect((await callback({ code: 'auth-code', state: started.body.state })).status).toBe(400)
+  })
+
+  it('sends a newcomer whose email already has an account to sign in and link instead', async () => {
+    await request(app).post('/api/auth/register').send({ username: 'emailowner', password: STRONG_PASSWORD, apartmentCode: APARTMENT_CODE, email: 'owner@gmail.com' })
+    const token = outbox.filter((m) => m.to === 'owner@gmail.com').at(-1).text.match(/verify-email\?token=([A-Za-z0-9_-]+)/)[1]
+    await request(app).post('/api/auth/verify-email').send({ token })
+
+    const res = await signInWithGoogle(nextGoogleAccount({ email: 'owner@gmail.com' }))
+    expect(res.status).toBe(409)
+    expect(res.body.error).toMatch(/link/i)
+    expect(res.body).not.toHaveProperty('signupToken')
+  })
+
+  it('rejects a username that is too long with a clear error', async () => {
+    const res = await signInWithGoogle(nextGoogleAccount())
+    const joined = await complete({ signupToken: res.body.signupToken, mode: 'join', username: 'x'.repeat(31), apartmentCode: APARTMENT_CODE })
+    expect(joined.status).toBe(400)
+  })
+
   it('rejects a state the server did not issue, and a forged sign-up token', async () => {
     googleSignsInAs(nextGoogleAccount())
     expect((await callback({ code: 'auth-code', state: 'made-up' })).status).toBe(400)
@@ -214,6 +246,26 @@ describe('sign in with Google', () => {
 
       await signInWithGoogle(nextGoogleAccount(), { intent: 'link', token })
       expect((await me(token)).body.user).toMatchObject({ email: 'someone.else@example.com', emailVerified: false, googleLinked: true })
+    })
+
+    it('refuses to swap in a different Google account once one is linked', async () => {
+      const token = await registerWithPassword('linkedonce')
+      const first = nextGoogleAccount()
+      await signInWithGoogle(first, { intent: 'link', token })
+
+      expect((await signInWithGoogle(nextGoogleAccount(), { intent: 'link', token })).status).toBe(409)
+      expect((await signInWithGoogle(first)).body).toMatchObject({ status: 'signed-in', user: { username: 'linkedonce' } })
+    })
+
+    it('verifies a matching email when a linked roommate signs in with Google', async () => {
+      const token = await registerWithPassword('linklater', 'first@example.com')
+      const account = nextGoogleAccount()
+      await signInWithGoogle(account, { intent: 'link', token })
+      await changeEmail(token, account.email)
+      expect((await me(token)).body.user.emailVerified).toBe(false)
+
+      await signInWithGoogle(account)
+      expect((await me(token)).body.user).toMatchObject({ email: account.email, emailVerified: true })
     })
 
     it('refuses to link a Google account that already belongs to another roommate', async () => {

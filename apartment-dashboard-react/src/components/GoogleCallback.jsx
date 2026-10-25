@@ -41,24 +41,24 @@ function ChooseHome({ signup, onSignedIn }) {
   const { generateApartmentCode } = useAuth()
   const [mode, setMode] = useState('join')
   const [form, setForm] = useState({ username: suggestUsername(signup.email), apartmentCode: '', apartmentName: '' })
-  const [state, setState] = useState({ saving: false, error: '' })
+  const [status, setStatus] = useState({ saving: false, error: '' })
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
 
   const handleGenerateCode = async () => {
     const result = await generateApartmentCode()
     if (result.success) setForm((prev) => ({ ...prev, apartmentCode: result.apartmentCode }))
-    else setState({ saving: false, error: result.error })
+    else setStatus({ saving: false, error: result.error })
   }
 
   const submit = async (event) => {
     event.preventDefault()
-    setState({ saving: true, error: '' })
+    setStatus({ saving: true, error: '' })
     try {
       const result = await completeGoogleSignUp({ signupToken: signup.signupToken, mode, ...form })
       onSignedIn(result)
     } catch (err) {
-      setState({ saving: false, error: err.response?.data?.error || 'Couldn’t create your account. Try again.' })
+      setStatus({ saving: false, error: err.response?.data?.error || 'Couldn’t create your account. Try again.' })
     }
   }
 
@@ -69,7 +69,7 @@ function ChooseHome({ signup, onSignedIn }) {
         Now join your roommates’ home or start a new one.
       </p>
 
-      <Segmented options={MODES} value={mode} onChange={(next) => { setMode(next); setState({ saving: false, error: '' }) }} label="Choose an option" stretch />
+      <Segmented options={MODES} value={mode} onChange={(next) => { setMode(next); setStatus({ saving: false, error: '' }) }} label="Choose an option" stretch />
 
       {mode === 'start' ? (
         <Field label="Home name" htmlFor="google-home">
@@ -92,9 +92,9 @@ function ChooseHome({ signup, onSignedIn }) {
         </div>
       </Field>
 
-      {state.error ? <p className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">{state.error}</p> : null}
+      {status.error ? <p className="rounded-ctl bg-danger-soft px-3 py-2.5 text-sm text-danger" role="alert">{status.error}</p> : null}
 
-      <Button type="submit" variant="primary" size="lg" loading={state.saving}>{mode === 'start' ? 'Start home' : 'Join home'}</Button>
+      <Button type="submit" variant="primary" size="lg" loading={status.saving}>{mode === 'start' ? 'Start home' : 'Join home'}</Button>
     </form>
   )
 }
@@ -104,7 +104,7 @@ export default function GoogleCallback() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { user, acceptSession, setEmailStatus, setGoogleLinked } = useAuth()
-  const [result, setResult] = useState({ state: 'pending' })
+  const [result, setResult] = useState({ phase: 'pending' })
   // Codes are single-use, so StrictMode's second effect run must not send it again
   const handled = useRef(false)
 
@@ -115,11 +115,11 @@ export default function GoogleCallback() {
     const expectedState = takeExpectedState()
     const googleError = params.get('error')
     if (googleError) {
-      setResult({ state: 'error', message: GOOGLE_ERRORS[googleError] || 'Google couldn’t sign you in. Try again.' })
+      setResult({ phase: 'error', message: GOOGLE_ERRORS[googleError] || 'Google couldn’t sign you in. Try again.' })
       return
     }
     if (!params.get('code') || !expectedState || params.get('state') !== expectedState) {
-      setResult({ state: 'error', message: 'This Google sign-in wasn’t started here, or has already been used. Try again.' })
+      setResult({ phase: 'error', message: 'This Google sign-in wasn’t started here, or has already been used. Try again.' })
       return
     }
 
@@ -133,15 +133,15 @@ export default function GoogleCallback() {
           setEmailStatus({ email: data.user.email, emailVerified: data.user.emailVerified })
           navigate('/settings', { replace: true })
         } else {
-          setResult({ state: 'needs-apartment', signup: data })
+          setResult({ phase: 'needs-apartment', signup: data })
         }
       })
       .catch((err) => {
-        setResult({ state: 'error', message: err.response?.data?.error || 'Google sign-in failed. Try again.' })
+        setResult({ phase: 'error', message: err.response?.data?.error || 'Google sign-in failed. Try again.' })
       })
   }, [params, navigate, acceptSession, setEmailStatus, setGoogleLinked])
 
-  if (result.state === 'needs-apartment') {
+  if (result.phase === 'needs-apartment') {
     return (
       <Card title="Choose your home">
         <ChooseHome
@@ -158,13 +158,13 @@ export default function GoogleCallback() {
   return (
     <Card title="Continue with Google">
       <div role="status" aria-live="polite">
-        {result.state === 'pending' ? (
+        {result.phase === 'pending' ? (
           <p className="flex items-center gap-2 text-muted"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Finishing sign-in…</p>
         ) : (
           <p className="text-danger">{result.message}</p>
         )}
       </div>
-      {result.state === 'error' ? (
+      {result.phase === 'error' ? (
         <Button variant="primary" size="lg" onClick={() => navigate(user ? '/settings' : '/', { replace: true })}>
           {user ? 'Back to settings' : 'Back to sign in'}
         </Button>

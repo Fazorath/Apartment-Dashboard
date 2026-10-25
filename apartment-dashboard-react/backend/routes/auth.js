@@ -12,6 +12,7 @@ import {
 import { checkPassword } from '../utils/passwordPolicy.js'
 import { sendVerificationEmail, verifyEmailToken } from '../utils/emailVerification.js'
 import { requestPasswordReset, resetPasswordWithToken } from '../utils/passwordReset.js'
+import { INVALID_APARTMENT_CODE, joinableApartmentName } from '../utils/apartments.js'
 import {
   createSignupToken,
   createState,
@@ -66,23 +67,17 @@ const passwordResetLimiter = rateLimit({
   message: { error: 'Too many attempts. Try again in a few minutes.' }
 })
 
-// Joining needs an apartment someone already lives in, or an allowlisted code for its
-// first roommate. Returns the apartment's name, or null when the code can't be joined.
-const APARTMENT_NAMES = {
-  GP412: 'Gainesville Place 412',
-  AL420: 'Alsander 420'
-}
-const INVALID_APARTMENT_CODE = 'Invalid apartment code. Please contact your apartment administrator for a valid code.'
-
-const joinableApartmentName = async (User, apartmentCode) => {
-  const codeUpper = apartmentCode.toUpperCase()
-  const existingApartment = await User.findOne({ apartmentCode: codeUpper })
-  if (existingApartment) return existingApartment.apartmentName
-
-  const allowedFirstUser = new Set((process.env.ALLOWED_APARTMENT_CODES || 'GP412,AL420').split(',').filter(Boolean).map(c => c.toUpperCase()))
-  if (!allowedFirstUser.has(codeUpper)) return null
-  return APARTMENT_NAMES[codeUpper] || codeUpper
-}
+// The user as the frontend keeps it after signing in
+const sessionUser = (user) => ({
+  id: user._id,
+  username: user.username,
+  email: user.email,
+  emailVerified: user.emailVerified,
+  googleLinked: Boolean(user.googleId),
+  apartmentCode: user.apartmentCode,
+  apartmentName: user.apartmentName,
+  isAdmin: user.isAdmin
+})
 
 // Register
 router.post('/register', validateApartmentCode, async (req, res) => {
@@ -143,15 +138,7 @@ router.post('/register', validateApartmentCode, async (req, res) => {
       success: true,
       message: 'Account created successfully',
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        apartmentCode: user.apartmentCode,
-        apartmentName: user.apartmentName,
-        isAdmin: user.isAdmin
-      }
+      user: sessionUser(user)
     })
   } catch (error) {
     console.error('Registration error:', error)
@@ -201,16 +188,7 @@ router.post('/login', async (req, res) => {
       success: true,
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        googleLinked: Boolean(user.googleId),
-        apartmentCode: user.apartmentCode,
-        apartmentName: user.apartmentName,
-        isAdmin: user.isAdmin
-      }
+      user: sessionUser(user)
     })
   } catch (error) {
     console.error('Login error:', error)
@@ -317,15 +295,7 @@ router.post('/create-apartment', validateApartmentCode, checkApartmentCodeAvaila
       success: true,
       message: 'Apartment created successfully',
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        apartmentCode: user.apartmentCode,
-        apartmentName: user.apartmentName,
-        isAdmin: user.isAdmin
-      }
+      user: sessionUser(user)
     })
   } catch (error) {
     console.error('Create apartment error:', error)
@@ -474,18 +444,6 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   }
 })
 
-// The user as the frontend keeps it after signing in
-const sessionUser = (user) => ({
-  id: user._id,
-  username: user.username,
-  email: user.email,
-  emailVerified: user.emailVerified,
-  googleLinked: Boolean(user.googleId),
-  apartmentCode: user.apartmentCode,
-  apartmentName: user.apartmentName,
-  isAdmin: user.isAdmin
-})
-
 const GOOGLE_INTENTS = new Set(['signin', 'link'])
 
 // A sign-in takes up to three calls, and a household may share one IP
@@ -502,11 +460,21 @@ const requireGoogle = (req, res, next) => {
   next()
 }
 
+// Linking is for the signed-in roommate; signing in needs no session
+const authenticateIfLinking = (intent, req, res, next) => intent === 'link' ? authenticateToken(req, res, next) : next()
+
+// Google has checked its address, so a matching email counts as verified here too
+const trustGoogleEmail = (user, identity) => {
+  if (!identity.email || !identity.emailVerified || user.email !== identity.email) return
+  user.emailVerified = true
+  user.emailVerificationTokenHash = undefined
+  user.emailVerificationExpires = undefined
+}
+
 // Start a round trip to Google: to sign in, or (signed in) to link Google to this account
 router.post('/google/start', googleLimiter, requireGoogle, (req, res, next) => {
   if (!GOOGLE_INTENTS.has(req.body.intent)) return res.status(400).json({ error: 'Unknown Google sign-in intent' })
-  if (req.body.intent === 'link') return authenticateToken(req, res, next)
-  next()
+  authenticateIfLinking(req.body.intent, req, res, next)
 }, (req, res) => {
   const state = createState({ intent: req.body.intent, userId: req.user?._id })
   res.json({ success: true, url: googleAuthUrl(state), state })
@@ -520,18 +488,17 @@ router.post('/google/callback', googleLimiter, requireGoogle, (req, res, next) =
     return res.status(400).json({ error: 'This Google sign-in has expired. Try again.' })
   }
   req.googleState = state
-  if (state.intent === 'link') return authenticateToken(req, res, next)
-  next()
+  authenticateIfLinking(state.intent, req, res, next)
 }, async (req, res) => {
   try {
-    const { intent, userId } = req.googleState
+    const { intent, userId, nonce } = req.googleState
     if (typeof req.body.code !== 'string' || !req.body.code) {
       return res.status(400).json({ error: 'Google didn’t send a sign-in code. Try again.' })
     }
 
     let identity
     try {
-      identity = await exchangeGoogleCode(req.body.code)
+      identity = await exchangeGoogleCode(req.body.code, nonce)
     } catch (error) {
       console.error('Google code exchange error:', error)
       return res.status(400).json({ error: 'Google sign-in failed. Try again.' })
@@ -550,21 +517,18 @@ router.post('/google/callback', googleLimiter, requireGoogle, (req, res, next) =
       }
 
       const user = await User.findById(req.user._id)
-      user.googleId = identity.sub
-      if (identity.email && identity.emailVerified) {
-        if (!user.email) user.email = identity.email
-        // Google has checked this address, so it counts as verified here too
-        if (user.email === identity.email) {
-          user.emailVerified = true
-          user.emailVerificationTokenHash = undefined
-          user.emailVerificationExpires = undefined
-        }
+      if (user.googleId && user.googleId !== identity.sub) {
+        return res.status(409).json({ error: 'A different Google account is already linked to you.' })
       }
+      user.googleId = identity.sub
+      if (!user.email && identity.emailVerified) user.email = identity.email
+      trustGoogleEmail(user, identity)
       await user.save()
       return res.json({ success: true, status: 'linked', user: sessionUser(user) })
     }
 
     if (linkedUser) {
+      trustGoogleEmail(linkedUser, identity)
       linkedUser.lastLogin = new Date()
       await linkedUser.save()
       return res.json({
@@ -573,6 +537,11 @@ router.post('/google/callback', googleLimiter, requireGoogle, (req, res, next) =
         token: generateToken(linkedUser._id, linkedUser.passwordChangedAt),
         user: sessionUser(linkedUser)
       })
+    }
+
+    // Rather than a second account, or a takeover, the owner of that address links Google themselves
+    if (identity.email && await User.findOne({ email: identity.email, emailVerified: true })) {
+      return res.status(409).json({ error: 'An account already uses this email. Sign in with your password, then link Google in Settings.' })
     }
 
     res.json({
@@ -602,11 +571,11 @@ router.post('/google/complete', googleLimiter, validateApartmentCode, async (req
     if (mode !== 'join' && mode !== 'start') {
       return res.status(400).json({ error: 'Choose to join or start a home' })
     }
-    if (username.length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters' })
+    if (username.length < 3 || username.length > 30) {
+      return res.status(400).json({ error: 'Username must be 3–30 characters' })
     }
-    if (mode === 'start' && apartmentName.length < 2) {
-      return res.status(400).json({ error: 'Apartment name must be at least 2 characters' })
+    if (mode === 'start' && (apartmentName.length < 2 || apartmentName.length > 50)) {
+      return res.status(400).json({ error: 'Apartment name must be 2–50 characters' })
     }
 
     const User = await getUserModel()

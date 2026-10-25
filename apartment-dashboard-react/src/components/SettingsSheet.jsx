@@ -98,12 +98,12 @@ function EmailForm({ email, emailVerified, onSaved }) {
 }
 
 function GoogleLink({ linked }) {
-  const [state, setState] = useState({ starting: false, error: '' })
+  const [status, setStatus] = useState({ starting: false, error: '' })
 
   const link = async () => {
-    setState({ starting: true, error: '' })
+    setStatus({ starting: true, error: '' })
     const failure = await beginGoogleSignIn('link')
-    if (failure) setState({ starting: false, error: failure })
+    if (failure) setStatus({ starting: false, error: failure })
   }
 
   if (linked) {
@@ -112,10 +112,10 @@ function GoogleLink({ linked }) {
 
   return (
     <div className="grid gap-1.5">
-      <Button variant="secondary" className="justify-self-start" onClick={link} loading={state.starting}>
-        {state.starting ? null : <GoogleMark size={16} />} Link Google
+      <Button variant="secondary" className="justify-self-start" onClick={link} loading={status.starting}>
+        {status.starting ? null : <GoogleMark size={16} />} Link Google
       </Button>
-      {state.error ? <p className="text-xs text-danger" role="alert">{state.error}</p> : <p className="text-xs text-subtle">Then you can sign in with Google too.</p>}
+      {status.error ? <p className="text-xs text-danger" role="alert">{status.error}</p> : <p className="text-xs text-subtle">Then you can sign in with Google too.</p>}
     </div>
   )
 }

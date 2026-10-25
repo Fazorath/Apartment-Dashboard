@@ -26,6 +26,7 @@ const redirectUri = () => process.env.GOOGLE_REDIRECT_URI || frontendLink('/auth
 /**
  * A signed, short-lived state for one round trip to Google. `userId` is set when a
  * signed-in roommate is linking, so the callback can't attach Google to anyone else.
+ * Its nonce goes to Google and must come back in the ID token, tying the token to this trip.
  */
 export const createState = ({ intent, userId }) => jwt.sign(
   { purpose: 'google-state', intent, uid: userId ? String(userId) : undefined, nonce: crypto.randomBytes(16).toString('base64url') },
@@ -33,12 +34,12 @@ export const createState = ({ intent, userId }) => jwt.sign(
   { expiresIn: STATE_TTL }
 )
 
-// Returns `{ intent, userId }`, or null when the state is forged, expired or for something else
+// Returns `{ intent, userId, nonce }`, or null when the state is forged, expired or for something else
 export const readState = (state) => {
   try {
     const decoded = jwt.verify(String(state), secret())
     if (decoded.purpose !== 'google-state') return null
-    return { intent: decoded.intent, userId: decoded.uid }
+    return { intent: decoded.intent, userId: decoded.uid, nonce: decoded.nonce }
   } catch {
     return null
   }
@@ -51,6 +52,7 @@ export const googleAuthUrl = (state) => {
     response_type: 'code',
     scope: 'openid email profile',
     state,
+    nonce: readState(state).nonce,
     prompt: 'select_account'
   })
   return `${AUTH_ENDPOINT}?${params}`
@@ -58,9 +60,10 @@ export const googleAuthUrl = (state) => {
 
 /**
  * Trade an authorization code for the Google account behind it:
- * `{ sub, email, emailVerified, name }`. Throws if Google refuses the code.
+ * `{ sub, email, emailVerified, name }`. Throws if Google refuses the code, or the
+ * ID token wasn't issued for the round trip whose state carried `nonce`.
  */
-export const exchangeGoogleCode = async (code) => {
+export const exchangeGoogleCode = async (code, nonce) => {
   const response = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -82,6 +85,7 @@ export const exchangeGoogleCode = async (code) => {
   if (claims.aud !== process.env.GOOGLE_CLIENT_ID) throw new Error('Google ID token is for another client')
   if (!claims.exp || claims.exp * 1000 <= Date.now()) throw new Error('Google ID token has expired')
   if (!claims.sub) throw new Error('Google ID token has no subject')
+  if (!nonce || claims.nonce !== nonce) throw new Error('Google ID token is from another sign-in attempt')
 
   return {
     sub: String(claims.sub),
