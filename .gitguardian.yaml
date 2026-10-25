@@ -1,0 +1,8 @@
+# ggshield config. Test files hold fake credentials (e.g. 'secret1') on purpose.
+# Only ggshield reads this file; the GitGuardian dashboard uses its own exclusion rules.
+version: 2
+secret:
+  ignored_paths:
+    - '**/test/**'
+    - '**/*.test.js'
+    - '**/*.test.jsx'
