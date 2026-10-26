@@ -22,12 +22,11 @@ export const pollLimiter = limiter({ limit: 1000, message: { error: 'Too many re
  */
 const authenticateDisplay = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization
-    const token = authHeader && authHeader.split(' ')[1]
-    if (!token) return res.status(401).json({ error: 'Display credential required' })
+    const credential = (req.headers.authorization || '').split(' ')[1]
+    if (!credential) return res.status(401).json({ error: 'Display credential required' })
 
     const PairedDisplay = await getPairedDisplayModel()
-    const display = await PairedDisplay.findOne({ credentialHash: hashCredential(token) })
+    const display = await PairedDisplay.findOne({ credentialHash: hashCredential(credential) })
     if (!display) return res.status(401).json({ error: 'Invalid credential' })
 
     req.display = display
