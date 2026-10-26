@@ -25,8 +25,6 @@ const joinApartment = async (apartmentCode) => {
 const startPairing = () => request(app).post('/api/display/pairing')
 const poll = (pairingSecret) => request(app).post('/api/display/pairing/poll').send({ pairingSecret })
 const pair = (token, code) => bearer(request(app).post('/api/display/pair'), token).send({ code })
-const status = (token) => bearer(request(app).get('/api/display/status'), token)
-const unpair = (token) => bearer(request(app).delete('/api/display'), token)
 const displayChores = (credential) => bearer(request(app).get('/api/display/chores'), credential)
 
 // Start on a TV, enter the code as a Roommate, collect the credential on the TV
@@ -130,62 +128,14 @@ describe('Display pairing', () => {
   })
 })
 
-describe('Display status and unpairing', () => {
-  it('shows who paired, when, and updates last seen when the TV reads its Chores', async () => {
-    const roommate = await openApartment('DISPC1', 'Status Flat')
-    expect((await status(roommate.token)).body).toEqual({ paired: false })
-
-    const credential = await pairDisplay(roommate)
-    const before = (await status(roommate.token)).body
-    expect(before.paired).toBe(true)
-    expect(before.pairedBy).toBe(roommate.username)
-    expect(new Date(before.pairedAt).getTime()).not.toBeNaN()
-    expect(before.lastSeen).toBeNull()
-
-    await displayChores(credential)
-    const after = (await status(roommate.token)).body
-    expect(new Date(after.lastSeen).getTime()).not.toBeNaN()
-  })
-
-  it('lets any Roommate of the Apartment see the status and unpair, after which the credential gets 401', async () => {
-    const pairer = await openApartment('DISPD1', 'Unpair Flat')
-    const other = await joinApartment('DISPD1')
-    const credential = await pairDisplay(pairer)
-
-    expect((await status(other.token)).body.paired).toBe(true)
-    expect((await unpair(other.token)).status).toBe(200)
-
-    expect((await status(pairer.token)).body.paired).toBe(false)
-    expect((await displayChores(credential)).status).toBe(401)
-  })
-
-  it('succeeds in unpairing even when nothing is paired', async () => {
-    const roommate = await openApartment('DISPE1', 'Empty Flat')
-    expect((await unpair(roommate.token)).status).toBe(200)
-  })
-
-  it('leaves another Apartment alone', async () => {
-    const mine = await openApartment('DISPF1', 'Mine')
-    const theirs = await openApartment('DISPF2', 'Theirs')
-    const credential = await pairDisplay(mine)
-
-    expect((await status(theirs.token)).body.paired).toBe(false)
-    await unpair(theirs.token)
-    expect((await displayChores(credential)).status).toBe(200)
-  })
-
-  it('pairing a second screen revokes the first', async () => {
+describe('Display replacement', () => {
+  it('pairing a second screen replaces the first', async () => {
     const roommate = await openApartment('DISPG1', 'Replace Flat')
     const first = await pairDisplay(roommate)
     const second = await pairDisplay(roommate)
 
     expect((await displayChores(first)).status).toBe(401)
     expect((await displayChores(second)).status).toBe(200)
-  })
-
-  it('needs a Roommate session for status and unpair', async () => {
-    expect((await request(app).get('/api/display/status')).status).toBe(401)
-    expect((await request(app).delete('/api/display')).status).toBe(401)
   })
 })
 
@@ -233,8 +183,6 @@ describe('Display Chores', () => {
       bearer(request(app).post(`/api/tasks/${chore._id}/done`), credential),
       bearer(request(app).delete(`/api/tasks/${chore._id}`), credential),
       bearer(request(app).get('/api/auth/me'), credential),
-      bearer(request(app).get('/api/display/status'), credential),
-      bearer(request(app).delete('/api/display'), credential),
       bearer(request(app).post('/api/display/pair'), credential).send({ code: 'ABCDEF' })
     ]
     for (const attempt of attempts) expect((await attempt).status).toBe(401)

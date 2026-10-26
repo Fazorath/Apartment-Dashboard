@@ -148,17 +148,7 @@ export const completeSocialSignUp = async (provider, details) => {
 }
 
 // Paired Display API (Settings side)
-export const getDisplayStatus = async () => {
-  const response = await axios.get('/api/display/status')
-  return response.data
-}
-
 export const pairDisplay = async (code) => {
   const response = await axios.post('/api/display/pair', { code })
-  return response.data
-}
-
-export const unpairDisplay = async () => {
-  const response = await axios.delete('/api/display')
   return response.data
 }

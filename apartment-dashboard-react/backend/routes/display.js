@@ -1,20 +1,10 @@
 import express from 'express'
-import rateLimit from 'express-rate-limit'
 import { authenticateToken, setApartmentContext } from '../middleware/auth.js'
 import { getUserModel } from '../models/User.js'
 import { getPairedDisplayModel } from '../models/Display.js'
 import { startPairing, pollPairing, claimPairing, hashCredential, BAD_CODE_ERROR } from '../utils/displayPairing.js'
 
 const router = express.Router()
-
-const limiter = (options) => rateLimit({ windowMs: 15 * 60 * 1000, standardHeaders: 'draft-7', legacyHeaders: false, ...options })
-
-// The pairing endpoints can be reached without signing in, so starting and guessing are tight
-export const startLimiter = limiter({ limit: 30, message: { error: 'Too many pairing attempts. Try again in a few minutes.' } })
-// Only wrong guesses count against a Roommate
-export const claimLimiter = limiter({ limit: 10, skipSuccessfulRequests: true, message: { error: 'Too many wrong codes. Try again in a few minutes.' } })
-// The TV polls every few seconds while it shows a code
-export const pollLimiter = limiter({ limit: 1000, message: { error: 'Too many requests. Try again in a few minutes.' } })
 
 /**
  * Accepts only a Paired Display's credential (never a session token) and sets the
@@ -39,7 +29,7 @@ const authenticateDisplay = async (req, res, next) => {
 }
 
 // The TV asks for a Pairing code
-router.post('/pairing', startLimiter, async (req, res) => {
+router.post('/pairing', async (req, res) => {
   try {
     const { code, pairingSecret, expiresAt } = await startPairing()
     res.status(201).json({ code, pairingSecret, expiresAt })
@@ -50,7 +40,7 @@ router.post('/pairing', startLimiter, async (req, res) => {
 })
 
 // The TV waits to be paired
-router.post('/pairing/poll', pollLimiter, async (req, res) => {
+router.post('/pairing/poll', async (req, res) => {
   try {
     res.json(await pollPairing(req.body?.pairingSecret))
   } catch (error) {
@@ -60,7 +50,7 @@ router.post('/pairing/poll', pollLimiter, async (req, res) => {
 })
 
 // A Roommate enters the code shown on the TV
-router.post('/pair', authenticateToken, claimLimiter, async (req, res) => {
+router.post('/pair', authenticateToken, async (req, res) => {
   try {
     const paired = await claimPairing(req.apartmentCode, req.user.username, req.body?.code)
     if (!paired) return res.status(400).json({ error: BAD_CODE_ERROR })
@@ -68,30 +58,6 @@ router.post('/pair', authenticateToken, claimLimiter, async (req, res) => {
   } catch (error) {
     console.error('Pair display error:', error)
     res.status(500).json({ error: 'Failed to pair the Display' })
-  }
-})
-
-router.get('/status', authenticateToken, async (req, res) => {
-  try {
-    const PairedDisplay = await getPairedDisplayModel()
-    const display = await PairedDisplay.findOne({ apartmentCode: req.apartmentCode })
-    if (!display) return res.json({ paired: false })
-    res.json({ paired: true, pairedAt: display.pairedAt, pairedBy: display.pairedBy, lastSeen: display.lastSeen || null })
-  } catch (error) {
-    console.error('Display status error:', error)
-    res.status(500).json({ error: 'Failed to load the Display status' })
-  }
-})
-
-// Any Roommate can unpair, and it works even when nothing is paired
-router.delete('/', authenticateToken, async (req, res) => {
-  try {
-    const PairedDisplay = await getPairedDisplayModel()
-    await PairedDisplay.deleteOne({ apartmentCode: req.apartmentCode })
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Unpair display error:', error)
-    res.status(500).json({ error: 'Failed to unpair the Display' })
   }
 })
 
@@ -116,8 +82,6 @@ router.get('/chores', authenticateDisplay, async (req, res) => {
       Task.find({ active: { $ne: false } }).sort({ pinned: -1, lastDone: 1, name: 1 }),
       User.findOne({ apartmentCode: req.apartmentCode })
     ])
-    req.display.lastSeen = new Date()
-    await req.display.save()
     res.json({
       apartmentName: roommate?.apartmentName,
       serverTime: new Date().toISOString(),

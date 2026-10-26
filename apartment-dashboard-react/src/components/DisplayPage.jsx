@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  DisplayRequestError,
-  clearCredential,
   fetchDisplayChores,
   pollPairing,
   readCredential,
@@ -11,17 +9,12 @@ import {
 import { getTaskStatus, sortTasks } from '../lib/taskStatus'
 
 const POLL_MS = 3000
-const REFRESH_MS = 60 * 1000
 
 // Opened on the TV at /display, whether or not anyone is signed in there.
 // Shows a Pairing code until a Roommate pairs it, then the Apartment's Chores. Read-only.
 export default function DisplayPage() {
   const [credential, setCredential] = useState(() => readCredential())
 
-  const unpaired = useCallback(() => {
-    clearCredential()
-    setCredential(null)
-  }, [])
   const paired = useCallback((next) => {
     saveCredential(next)
     setCredential(next)
@@ -30,7 +23,7 @@ export default function DisplayPage() {
   return (
     <main className="min-h-screen bg-black p-[4vmin] text-white">
       {credential
-        ? <Showing credential={credential} onUnpaired={unpaired} />
+        ? <Showing credential={credential} />
         : <Pairing onPaired={paired} />}
     </main>
   )
@@ -98,50 +91,27 @@ function Pairing({ onPaired }) {
   )
 }
 
-function Showing({ credential, onUnpaired }) {
+function Showing({ credential }) {
   const [data, setData] = useState(null)
-  const [offlineSince, setOfflineSince] = useState(null)
-  const [now, setNow] = useState(() => new Date())
+  const [failed, setFailed] = useState(false)
+  const [now] = useState(() => new Date())
 
   useEffect(() => {
     let cancelled = false
-    let timer
-
-    const load = async () => {
-      try {
-        const result = await fetchDisplayChores(credential)
-        if (cancelled) return
-        setData(result)
-        setOfflineSince(null)
-      } catch (error) {
-        if (cancelled) return
-        if (error instanceof DisplayRequestError && error.status === 401) return onUnpaired()
-        setOfflineSince((since) => since || new Date())
-      }
-      if (!cancelled) timer = setTimeout(load, REFRESH_MS)
-    }
-
-    load()
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [credential, onUnpaired])
-
-  useEffect(() => {
-    const tick = setInterval(() => setNow(new Date()), REFRESH_MS)
-    return () => clearInterval(tick)
-  }, [])
+    fetchDisplayChores(credential)
+      .then((result) => { if (!cancelled) setData(result) })
+      .catch(() => { if (!cancelled) setFailed(true) })
+    return () => { cancelled = true }
+  }, [credential])
 
   if (!data) {
-    return <p className="grid min-h-[90vh] place-content-center text-[4vmin] text-neutral-300">{offlineSince ? 'Can’t reach the server. Trying again…' : 'Loading…'}</p>
+    return <p className="grid min-h-[90vh] place-content-center text-[4vmin] text-neutral-300">{failed ? 'Can’t load the chores. Reload to try again.' : 'Loading…'}</p>
   }
 
   const chores = sortTasks(data.chores, 'due', now)
   return (
     <div className="grid gap-[2vmin]">
       <h1 className="text-[5vmin] font-bold">{data.apartmentName || 'Chores'}</h1>
-      {offlineSince ? <p className="text-[2.4vmin] text-amber-300">Offline since {offlineSince.toLocaleTimeString()}</p> : null}
       {chores.length === 0 ? <p className="text-[3.6vmin] text-neutral-300">No chores yet.</p> : (
         <ul className="grid gap-[1.2vmin]">
           {chores.map((chore) => {
