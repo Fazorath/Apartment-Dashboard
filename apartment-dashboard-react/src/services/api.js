@@ -146,3 +146,9 @@ export const completeSocialSignUp = async (provider, details) => {
   const response = await axios.post(`/api/auth/${provider}/complete`, details)
   return response.data
 }
+
+// Paired Display API (Settings side)
+export const pairDisplay = async (code) => {
+  const response = await axios.post('/api/display/pair', { code })
+  return response.data
+}

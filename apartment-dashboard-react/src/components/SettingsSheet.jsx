@@ -6,7 +6,7 @@ import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
 import useAuth from '../hooks/useAuth'
-import { confirmTwoFactor, disableTwoFactor, resendVerificationEmail, setupTwoFactor, updateApartmentName, updateEmail } from '../services/api'
+import { confirmTwoFactor, disableTwoFactor, pairDisplay, resendVerificationEmail, setupTwoFactor, updateApartmentName, updateEmail } from '../services/api'
 import { PROVIDERS, beginSocialSignIn } from '../lib/socialSignIn'
 import GoogleMark from './ui/GoogleMark'
 import AppleMark from './ui/AppleMark'
@@ -38,6 +38,40 @@ function HomeNameForm({ initialName, onSaved }) {
         </div>
       </Field>
     </form>
+  )
+}
+
+// Enter the code the TV shows to pair it
+function DisplaySection() {
+  const [code, setCode] = useState('')
+  const [state, setState] = useState({ busy: false, error: '', message: '' })
+
+  const pair = async (event) => {
+    event.preventDefault()
+    if (!code.trim()) return
+    setState({ busy: true, error: '', message: '' })
+    try {
+      await pairDisplay(code.trim())
+      setCode('')
+      setState({ busy: false, error: '', message: 'Paired. The TV will show your chores in a few seconds.' })
+    } catch (err) {
+      setState({ busy: false, error: errorFrom(err, 'Couldn’t pair the Display. Try again.'), message: '' })
+    }
+  }
+
+  return (
+    <div className="grid gap-3">
+      <h4 className="text-xs font-semibold text-muted">Display</h4>
+      <p className="text-sm text-muted">Open <b className="font-semibold">/display</b> on your TV’s browser, then enter the code it shows.</p>
+      <form onSubmit={pair} className="grid gap-2">
+        <Field label="Pairing code" htmlFor="settings-display-code" error={state.error} hint={state.message}>
+          <div className="flex gap-2">
+            <Input id="settings-display-code" value={code} maxLength={10} autoCapitalize="characters" autoComplete="off" onChange={(e) => setCode(e.target.value)} />
+            <Button type="submit" variant="secondary" size="lg" disabled={!code.trim()} loading={state.busy}>Pair</Button>
+          </div>
+        </Field>
+      </form>
+    </div>
   )
 }
 
@@ -302,6 +336,7 @@ export default function SettingsSheet({ open, onClose, onSignOut }) {
                 </Button>
               </div>
             </Field>
+            <DisplaySection />
           </section>
         ) : null}
 
