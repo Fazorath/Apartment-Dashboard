@@ -3,6 +3,15 @@ import { getUserModel } from '../models/User.js'
 import dbManager from '../utils/dbManager.js'
 
 /**
+ * Point the request at one apartment: its code and its own database's models.
+ * Shared by session auth and the Display's credential auth.
+ */
+export const setApartmentContext = async (req, apartmentCode) => {
+  req.apartmentCode = apartmentCode
+  req.apartmentModels = await dbManager.getApartmentModels(apartmentCode)
+}
+
+/**
  * Middleware to authenticate token and set apartment context
  */
 export const authenticateToken = async (req, res, next) => {
@@ -24,13 +33,9 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
-    // Set user and apartment context
     req.user = user
-    req.apartmentCode = user.apartmentCode
-    
-    // Get apartment-specific models and attach to request
-    req.apartmentModels = await dbManager.getApartmentModels(user.apartmentCode)
-    
+    await setApartmentContext(req, user.apartmentCode)
+
     next()
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

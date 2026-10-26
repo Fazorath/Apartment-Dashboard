@@ -8,6 +8,7 @@ import AdminDashboard from './components/AdminDashboard'
 import VerifyEmail from './components/VerifyEmail'
 import { ForgotPassword, ResetPassword } from './components/PasswordRecovery'
 import SocialCallback from './components/SocialCallback'
+import DisplayPage from './components/DisplayPage'
 
 function App() {
   return (
@@ -22,6 +23,9 @@ function App() {
 function AppRoutes() {
   const { user, loading } = useAuth()
   const location = useLocation()
+
+  // The TV's Display page never depends on a Roommate being signed in
+  if (location.pathname === '/display') return <DisplayPage />
 
   if (loading) {
     return (

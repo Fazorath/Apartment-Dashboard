@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { BadgeCheck, Check, Copy, LogOut, MailWarning, ShieldCheck } from 'lucide-react'
 import Sheet, { SheetBody, SheetHeader } from './ui/Sheet'
 import Button from './ui/Button'
@@ -6,7 +6,8 @@ import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
 import useAuth from '../hooks/useAuth'
-import { confirmTwoFactor, disableTwoFactor, resendVerificationEmail, setupTwoFactor, updateApartmentName, updateEmail } from '../services/api'
+import ConfirmDialog from './ui/ConfirmDialog'
+import { confirmTwoFactor, disableTwoFactor, getDisplayStatus, pairDisplay, resendVerificationEmail, unpairDisplay, setupTwoFactor, updateApartmentName, updateEmail } from '../services/api'
 import { PROVIDERS, beginSocialSignIn } from '../lib/socialSignIn'
 import GoogleMark from './ui/GoogleMark'
 import AppleMark from './ui/AppleMark'
@@ -38,6 +39,83 @@ function HomeNameForm({ initialName, onSaved }) {
         </div>
       </Field>
     </form>
+  )
+}
+
+const formatWhen = (value) => (value ? new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'not yet')
+
+// Pair the TV with the code it shows, see whether it's checking in, or unpair it
+function DisplaySection() {
+  const [display, setDisplay] = useState(null)
+  const [code, setCode] = useState('')
+  const [state, setState] = useState({ busy: false, error: '', message: '' })
+  const [confirming, setConfirming] = useState(false)
+
+  const refresh = useCallback(async () => {
+    try {
+      setDisplay(await getDisplayStatus())
+    } catch {
+      setDisplay(null)
+    }
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  const pair = async (event) => {
+    event.preventDefault()
+    if (!code.trim()) return
+    setState({ busy: true, error: '', message: '' })
+    try {
+      await pairDisplay(code.trim())
+      setCode('')
+      setState({ busy: false, error: '', message: 'Paired. The TV will show your chores in a few seconds.' })
+      refresh()
+    } catch (err) {
+      setState({ busy: false, error: errorFrom(err, 'Couldn’t pair the Display. Try again.'), message: '' })
+    }
+  }
+
+  const unpair = async () => {
+    setState({ busy: true, error: '', message: '' })
+    try {
+      await unpairDisplay()
+      setState({ busy: false, error: '', message: 'Unpaired.' })
+      refresh()
+    } catch (err) {
+      setState({ busy: false, error: errorFrom(err, 'Couldn’t unpair the Display. Try again.'), message: '' })
+    }
+    setConfirming(false)
+  }
+
+  return (
+    <div className="grid gap-3">
+      <h4 className="text-xs font-semibold text-muted">Display</h4>
+      {display?.paired ? (
+        <p className="text-sm text-muted">
+          A Display is paired. Paired {formatWhen(display.pairedAt)} by {display.pairedBy}. Last checked in: {formatWhen(display.lastSeen)}.
+        </p>
+      ) : (
+        <p className="text-sm text-muted">Open <b className="font-semibold">/display</b> on your TV’s browser, then enter the code it shows.</p>
+      )}
+      <form onSubmit={pair} className="grid gap-2">
+        <Field label="Pairing code" htmlFor="settings-display-code" error={state.error} hint={state.message || (display?.paired ? 'Pairing a different screen replaces this one.' : '')}>
+          <div className="flex gap-2">
+            <Input id="settings-display-code" value={code} maxLength={10} autoCapitalize="characters" autoComplete="off" onChange={(e) => setCode(e.target.value)} />
+            <Button type="submit" variant="secondary" size="lg" disabled={!code.trim()} loading={state.busy}>Pair</Button>
+          </div>
+        </Field>
+      </form>
+      {display?.paired ? <Button variant="secondary" className="justify-self-start" onClick={() => setConfirming(true)}>Unpair</Button> : null}
+      <ConfirmDialog
+        open={confirming}
+        title="Unpair the Display?"
+        message="The TV will stop showing your chores and go back to showing a Pairing code."
+        confirmLabel="Unpair"
+        onConfirm={unpair}
+        onCancel={() => setConfirming(false)}
+        busy={state.busy}
+      />
+    </div>
   )
 }
 
@@ -302,6 +380,7 @@ export default function SettingsSheet({ open, onClose, onSignOut }) {
                 </Button>
               </div>
             </Field>
+            <DisplaySection />
           </section>
         ) : null}
 

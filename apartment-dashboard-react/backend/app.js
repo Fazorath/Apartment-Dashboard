@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js'
 import taskRoutes from './routes/tasks.js'
 import apartmentRoutes from './routes/apartment.js'
 import adminRoutes from './routes/admin.js'
+import displayRoutes from './routes/display.js'
 import { authenticateToken, requireAdmin } from './middleware/auth.js'
 import { appleReturn } from './utils/appleOAuth.js'
 
@@ -48,6 +49,9 @@ app.use(express.json())
 
 // Routes
 app.use('/api/auth', authRoutes)
+// Mounted without session auth: the Display has its own credential, and the
+// Roommate-facing routes inside add session auth themselves
+app.use('/api/display', displayRoutes)
 app.use('/api/tasks', authenticateToken, taskRoutes)
 app.use('/api/apartment', authenticateToken, apartmentRoutes)
 app.use('/api/admin', authenticateToken, requireAdmin, adminRoutes)
