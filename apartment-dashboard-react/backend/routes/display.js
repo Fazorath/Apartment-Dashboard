@@ -1,10 +1,26 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import { authenticateToken, setApartmentContext } from '../middleware/auth.js'
 import { getUserModel } from '../models/User.js'
 import { getPairedDisplayModel } from '../models/Display.js'
 import { startPairing, pollPairing, claimPairing, hashCredential, BAD_CODE_ERROR } from '../utils/displayPairing.js'
 
 const router = express.Router()
+
+// These routes are reachable without signing in, so per-IP limits plus the short code
+// life and single use are what stop code guessing and pending-pairing floods
+const pairingLimiter = (limit, windowMs, message) => rateLimit({
+  windowMs,
+  limit,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: message }
+})
+
+export const startPairingLimiter = pairingLimiter(10, 15 * 60 * 1000, 'Too many pairing attempts. Try again in a few minutes.')
+export const claimPairingLimiter = pairingLimiter(10, 15 * 60 * 1000, 'Too many wrong or repeated codes. Try again in a few minutes.')
+// The TV polls every ~3s (20 a minute) while it shows a code; this leaves 3x headroom
+export const pollPairingLimiter = pairingLimiter(60, 60 * 1000, 'Checking too often. Slow down.')
 
 /**
  * Accepts only a Paired Display's credential (never a session token) and sets the
@@ -29,7 +45,7 @@ const authenticateDisplay = async (req, res, next) => {
 }
 
 // The TV asks for a Pairing code
-router.post('/pairing', async (req, res) => {
+router.post('/pairing', startPairingLimiter, async (req, res) => {
   try {
     const { code, pairingSecret, expiresAt } = await startPairing()
     res.status(201).json({ code, pairingSecret, expiresAt })
@@ -40,7 +56,7 @@ router.post('/pairing', async (req, res) => {
 })
 
 // The TV waits to be paired
-router.post('/pairing/poll', async (req, res) => {
+router.post('/pairing/poll', pollPairingLimiter, async (req, res) => {
   try {
     res.json(await pollPairing(req.body?.pairingSecret))
   } catch (error) {
@@ -50,7 +66,7 @@ router.post('/pairing/poll', async (req, res) => {
 })
 
 // A Roommate enters the code shown on the TV
-router.post('/pair', authenticateToken, async (req, res) => {
+router.post('/pair', claimPairingLimiter, authenticateToken, async (req, res) => {
   try {
     const paired = await claimPairing(req.apartmentCode, req.user.username, req.body?.code)
     if (!paired) return res.status(400).json({ error: BAD_CODE_ERROR })
