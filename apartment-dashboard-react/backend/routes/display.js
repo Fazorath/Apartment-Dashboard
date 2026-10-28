@@ -61,6 +61,31 @@ router.post('/pair', authenticateToken, async (req, res) => {
   }
 })
 
+// Whether this Apartment has a Paired Display, and when it was paired and last read its Chores
+router.get('/status', authenticateToken, async (req, res) => {
+  try {
+    const PairedDisplay = await getPairedDisplayModel()
+    const display = await PairedDisplay.findOne({ apartmentCode: req.apartmentCode })
+    if (!display) return res.json({ paired: false })
+    res.json({ paired: true, pairedAt: display.pairedAt, pairedBy: display.pairedBy, lastSeen: display.lastSeen ?? null })
+  } catch (error) {
+    console.error('Display status error:', error)
+    res.status(500).json({ error: 'Failed to check the Display' })
+  }
+})
+
+// Any Roommate can unpair; it's fine if nothing is paired
+router.delete('/', authenticateToken, async (req, res) => {
+  try {
+    const PairedDisplay = await getPairedDisplayModel()
+    await PairedDisplay.deleteOne({ apartmentCode: req.apartmentCode })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Unpair display error:', error)
+    res.status(500).json({ error: 'Failed to unpair the Display' })
+  }
+})
+
 // An allowlist, so new Chore fields stay off the Display unless someone adds them here
 const displayChore = (task) => ({
   id: task._id,
@@ -77,6 +102,7 @@ const displayChore = (task) => ({
 router.get('/chores', authenticateDisplay, async (req, res) => {
   try {
     const { Task } = req.apartmentModels
+    await req.display.updateOne({ lastSeen: new Date() })
     const User = await getUserModel()
     const [tasks, roommate] = await Promise.all([
       Task.find({ active: { $ne: false } }).sort({ pinned: -1, lastDone: 1, name: 1 }),
