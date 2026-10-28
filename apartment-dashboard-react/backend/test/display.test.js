@@ -188,3 +188,89 @@ describe('Display Chores', () => {
     for (const attempt of attempts) expect((await attempt).status).toBe(401)
   })
 })
+
+const status = (token) => bearer(request(app).get('/api/display/status'), token)
+const unpair = (token) => bearer(request(app).delete('/api/display'), token)
+
+describe('Display status and unpairing', () => {
+  it('says no Display is paired before one is', async () => {
+    const roommate = await openApartment('DISPJ1', 'Status Flat')
+    const res = await status(roommate.token)
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ paired: false })
+  })
+
+  it('shows paired-at, paired-by and last-seen once paired', async () => {
+    const roommate = await openApartment('DISPK1', 'Status Flat')
+    await pairDisplay(roommate)
+    const res = await status(roommate.token)
+    expect(res.status).toBe(200)
+    expect(res.body.paired).toBe(true)
+    expect(res.body.pairedBy).toBe(roommate.username)
+    expect(Math.abs(new Date(res.body.pairedAt).getTime() - Date.now())).toBeLessThan(10000)
+    expect(res.body.lastSeen).toBeNull()
+    expect(JSON.stringify(res.body)).not.toMatch(/credential/i)
+  })
+
+  it('moves last-seen forward after a Display Chores read', async () => {
+    const roommate = await openApartment('DISPL1', 'Seen Flat')
+    const credential = await pairDisplay(roommate)
+    expect((await status(roommate.token)).body.lastSeen).toBeNull()
+
+    expect((await displayChores(credential)).status).toBe(200)
+    const first = new Date((await status(roommate.token)).body.lastSeen).getTime()
+    expect(Math.abs(first - Date.now())).toBeLessThan(10000)
+
+    await withClockMoved(5 * MINUTE, () => displayChores(credential))
+    const second = new Date((await status(roommate.token)).body.lastSeen).getTime()
+    expect(second).toBeGreaterThan(first + 4 * MINUTE)
+  })
+
+  it('lets any Roommate unpair, including a Display someone else paired, and the old credential gets 401', async () => {
+    const pairer = await openApartment('DISPM1', 'Unpair Flat')
+    const other = await joinApartment('DISPM1')
+    const credential = await pairDisplay(pairer)
+    expect((await displayChores(credential)).status).toBe(200)
+
+    expect((await unpair(other.token)).status).toBe(200)
+
+    expect((await displayChores(credential)).status).toBe(401)
+    expect((await status(pairer.token)).body).toEqual({ paired: false })
+  })
+
+  it('succeeds when nothing is paired', async () => {
+    const roommate = await openApartment('DISPN1', 'Empty Flat')
+    expect((await unpair(roommate.token)).status).toBe(200)
+    expect((await unpair(roommate.token)).status).toBe(200)
+  })
+
+  it('lets a Display be paired again after unpairing', async () => {
+    const roommate = await openApartment('DISPO1', 'Again Flat')
+    await pairDisplay(roommate)
+    await unpair(roommate.token)
+    const credential = await pairDisplay(roommate)
+    expect((await displayChores(credential)).status).toBe(200)
+  })
+
+  it('keeps one Apartment\'s Display hidden from, and safe from, another Apartment\'s Roommate', async () => {
+    const owner = await openApartment('DISPP1', 'Mine')
+    const stranger = await openApartment('DISPQ1', 'Theirs')
+    const credential = await pairDisplay(owner)
+
+    expect((await status(stranger.token)).body).toEqual({ paired: false })
+    expect((await unpair(stranger.token)).status).toBe(200)
+
+    expect((await displayChores(credential)).status).toBe(200)
+    expect((await status(owner.token)).body.paired).toBe(true)
+  })
+
+  it('needs a Roommate session for both, and refuses a Display credential', async () => {
+    const roommate = await openApartment('DISPR1', 'Closed Flat')
+    const credential = await pairDisplay(roommate)
+    expect((await request(app).get('/api/display/status')).status).toBe(401)
+    expect((await request(app).delete('/api/display')).status).toBe(401)
+    expect((await status(credential)).status).toBe(401)
+    expect((await unpair(credential)).status).toBe(401)
+    expect((await displayChores(credential)).status).toBe(200)
+  })
+})

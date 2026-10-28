@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  DisplayRequestError,
+  clearCredential,
   fetchDisplayChores,
   pollPairing,
   readCredential,
@@ -9,6 +11,8 @@ import {
 import { getTaskStatus, sortTasks } from '../lib/taskStatus'
 
 const POLL_MS = 3000
+// How often the Display reads its Chores, which is also how it finds out it was unpaired
+const REFRESH_MS = 60 * 1000
 
 // Opened on the TV at /display, whether or not anyone is signed in there.
 // Shows a Pairing code until a Roommate pairs it, then the Apartment's Chores. Read-only.
@@ -20,10 +24,16 @@ export default function DisplayPage() {
     setCredential(next)
   }, [])
 
+  // A 401 means a Roommate unpaired this screen or paired another: start over with a fresh code
+  const unpaired = useCallback(() => {
+    clearCredential()
+    setCredential(null)
+  }, [])
+
   return (
     <main className="min-h-screen bg-black p-[4vmin] text-white">
       {credential
-        ? <Showing credential={credential} />
+        ? <Showing credential={credential} onUnpaired={unpaired} />
         : <Pairing onPaired={paired} />}
     </main>
   )
@@ -91,18 +101,27 @@ function Pairing({ onPaired }) {
   )
 }
 
-function Showing({ credential }) {
+function Showing({ credential, onUnpaired }) {
   const [data, setData] = useState(null)
   const [failed, setFailed] = useState(false)
   const [now] = useState(() => new Date())
 
   useEffect(() => {
     let cancelled = false
-    fetchDisplayChores(credential)
-      .then((result) => { if (!cancelled) setData(result) })
-      .catch(() => { if (!cancelled) setFailed(true) })
-    return () => { cancelled = true }
-  }, [credential])
+    const load = () => fetchDisplayChores(credential)
+      .then((result) => { if (!cancelled) { setData(result); setFailed(false) } })
+      .catch((error) => {
+        if (cancelled) return
+        if (error instanceof DisplayRequestError && error.status === 401) return onUnpaired()
+        setFailed(true) // keeps whatever is already showing
+      })
+    load()
+    const timer = setInterval(load, REFRESH_MS)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [credential, onUnpaired])
 
   if (!data) {
     return <p className="grid min-h-[90vh] place-content-center text-[4vmin] text-neutral-300">{failed ? 'Can’t load the chores. Reload to try again.' : 'Loading…'}</p>

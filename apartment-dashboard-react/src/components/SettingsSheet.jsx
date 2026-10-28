@@ -1,12 +1,13 @@
-import { useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { BadgeCheck, Check, Copy, LogOut, MailWarning, ShieldCheck } from 'lucide-react'
 import Sheet, { SheetBody, SheetHeader } from './ui/Sheet'
 import Button from './ui/Button'
+import ConfirmDialog from './ui/ConfirmDialog'
 import Segmented from './ui/Segmented'
 import { Field, Input } from './ui/Field'
 import useTheme, { THEME_OPTIONS } from '../hooks/useTheme'
 import useAuth from '../hooks/useAuth'
-import { confirmTwoFactor, disableTwoFactor, pairDisplay, resendVerificationEmail, setupTwoFactor, updateApartmentName, updateEmail } from '../services/api'
+import { confirmTwoFactor, disableTwoFactor, getDisplayStatus, pairDisplay, resendVerificationEmail, setupTwoFactor, unpairDisplay, updateApartmentName, updateEmail } from '../services/api'
 import { PROVIDERS, beginSocialSignIn } from '../lib/socialSignIn'
 import GoogleMark from './ui/GoogleMark'
 import AppleMark from './ui/AppleMark'
@@ -41,10 +42,65 @@ function HomeNameForm({ initialName, onSaved }) {
   )
 }
 
-// Enter the code the TV shows to pair it
+const formatWhen = (value) => new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+
+// Who paired the Display and when it last checked in, with a way to unpair it
+function DisplayStatus({ status, onUnpaired }) {
+  const [confirming, setConfirming] = useState(false)
+  const [state, setState] = useState({ busy: false, error: '' })
+
+  const unpair = async () => {
+    setState({ busy: true, error: '' })
+    try {
+      await unpairDisplay()
+      setConfirming(false)
+      setState({ busy: false, error: '' })
+      onUnpaired()
+    } catch (err) {
+      setConfirming(false)
+      setState({ busy: false, error: errorFrom(err, 'Couldn’t unpair the Display. Try again.') })
+    }
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm font-medium">A Display is paired</p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm text-muted">
+        <dt>Paired</dt>
+        <dd>{formatWhen(status.pairedAt)} by {status.pairedBy}</dd>
+        <dt>Last seen</dt>
+        <dd>{status.lastSeen ? formatWhen(status.lastSeen) : 'Not yet'}</dd>
+      </dl>
+      {state.error ? <p className="text-xs text-danger" role="alert">{state.error}</p> : null}
+      <Button variant="secondary" className="justify-self-start" onClick={() => setConfirming(true)}>Unpair Display</Button>
+      <ConfirmDialog
+        open={confirming}
+        title="Unpair this Display?"
+        message="The TV will stop showing your chores and go back to showing a Pairing code. Any Roommate can pair it again."
+        confirmLabel="Unpair"
+        busy={state.busy}
+        onConfirm={unpair}
+        onCancel={() => setConfirming(false)}
+      />
+    </div>
+  )
+}
+
+// Whether a Display is paired, and a place to enter the code the TV shows to pair one
 function DisplaySection() {
   const [code, setCode] = useState('')
   const [state, setState] = useState({ busy: false, error: '', message: '' })
+  const [display, setDisplay] = useState({ loading: true, error: false, status: null })
+
+  const refresh = useCallback(async () => {
+    try {
+      setDisplay({ loading: false, error: false, status: await getDisplayStatus() })
+    } catch {
+      setDisplay({ loading: false, error: true, status: null })
+    }
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
 
   const pair = async (event) => {
     event.preventDefault()
@@ -54,15 +110,23 @@ function DisplaySection() {
       await pairDisplay(code.trim())
       setCode('')
       setState({ busy: false, error: '', message: 'Paired. The TV will show your chores in a few seconds.' })
+      refresh()
     } catch (err) {
       setState({ busy: false, error: errorFrom(err, 'Couldn’t pair the Display. Try again.'), message: '' })
     }
   }
 
+  const paired = display.status?.paired
+
   return (
     <div className="grid gap-3">
       <h4 className="text-xs font-semibold text-muted">Display</h4>
-      <p className="text-sm text-muted">Open <b className="font-semibold">/display</b> on your TV’s browser, then enter the code it shows.</p>
+      {display.loading ? null : display.error
+        ? <p className="text-xs text-danger" role="alert">Couldn’t check the Display. <button type="button" className="underline" onClick={refresh}>Try again</button></p>
+        : paired
+          ? <DisplayStatus status={display.status} onUnpaired={() => { setState({ busy: false, error: '', message: '' }); refresh() }} />
+          : <p className="text-sm font-medium">No Display is paired</p>}
+      <p className="text-sm text-muted">Open <b className="font-semibold">/display</b> on your TV’s browser, then enter the code it shows.{paired ? ' Pairing a new screen replaces the current one.' : ''}</p>
       <form onSubmit={pair} className="grid gap-2">
         <Field label="Pairing code" htmlFor="settings-display-code" error={state.error} hint={state.message}>
           <div className="flex gap-2">
