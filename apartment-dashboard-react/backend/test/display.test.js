@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import app from '../app.js'
+import { startPairingLimiter, claimPairingLimiter, pollPairingLimiter } from '../routes/display.js'
 
 const PASSWORD = 'maple-street-kettle'
 const HOME = 'DISPA1'
@@ -52,6 +53,46 @@ const withClockMoved = async (ms, action) => {
   }
 }
 const MINUTE = 60 * 1000
+
+// Every request here comes from one IP, so each test starts with fresh budgets
+const LOCAL_IPS = ['::ffff:127.0.0.1', '::1', '127.0.0.1']
+beforeEach(async () => {
+  for (const limiter of [startPairingLimiter, claimPairingLimiter, pollPairingLimiter]) {
+    for (const ip of LOCAL_IPS) await limiter.resetKey(ip)
+  }
+})
+
+describe('Display pairing rate limits', () => {
+  it('limits pairing starts per IP', async () => {
+    const statuses = []
+    for (let i = 0; i < 11; i++) statuses.push((await startPairing()).status)
+    expect(statuses.slice(0, 10).every((s) => s === 201)).toBe(true)
+    expect(statuses[10]).toBe(429)
+  })
+
+  it('limits claim attempts per IP', async () => {
+    const roommate = await openApartment('DISPL1', 'Limit Flat')
+    const statuses = []
+    for (let i = 0; i < 11; i++) statuses.push((await pair(roommate.token, 'WRONG1')).status)
+    expect(statuses.slice(0, 10).every((s) => s === 400)).toBe(true)
+    expect(statuses[10]).toBe(429)
+  })
+
+  it('lets a TV poll every 3s for the whole life of a code', async () => {
+    const { body: tv } = await startPairing()
+    // 10 minutes at one poll per 3s is 200 polls; replay them with the clock moving
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const start = Date.now()
+      for (let i = 0; i < 200; i++) {
+        vi.setSystemTime(start + i * 3000)
+        expect((await poll(tv.pairingSecret)).status).toBe(200)
+      }
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
 
 describe('Display pairing', () => {
   it('pairs end to end: start, a Roommate claims the code, the TV collects its credential once', async () => {
