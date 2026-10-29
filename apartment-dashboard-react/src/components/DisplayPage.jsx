@@ -8,11 +8,16 @@ import {
   saveCredential,
   startPairing
 } from '../services/displayApi'
-import { getTaskStatus, sortTasks } from '../lib/taskStatus'
+import { fitGroups, getDisplayView } from '../lib/displayView'
+import { plural } from '../lib/taskStatus'
 
 const POLL_MS = 3000
 // How often the Display reads its Chores, which is also how it finds out it was unpaired
 const REFRESH_MS = 60 * 1000
+// How often the clock (and so the day rollover) is checked
+const CLOCK_MS = 15 * 1000
+// Rows that fit under a section heading at the sizes below, a group heading counting as a row
+const MAX_ROWS = 14
 
 // Opened on the TV at /display, whether or not anyone is signed in there.
 // Shows a Pairing code until a Roommate pairs it, then the Apartment's Chores. Read-only.
@@ -31,7 +36,7 @@ export default function DisplayPage() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-black p-[4vmin] text-white">
+    <main className="box-border h-screen cursor-none overflow-hidden bg-black p-[3vh] text-white">
       {credential
         ? <Showing credential={credential} onUnpaired={unpaired} />
         : <Pairing onPaired={paired} />}
@@ -104,7 +109,7 @@ function Pairing({ onPaired }) {
 function Showing({ credential, onUnpaired }) {
   const [data, setData] = useState(null)
   const [failed, setFailed] = useState(false)
-  const [now] = useState(() => new Date())
+  const now = useNow()
 
   useEffect(() => {
     let cancelled = false
@@ -127,23 +132,68 @@ function Showing({ credential, onUnpaired }) {
     return <p className="grid min-h-[90vh] place-content-center text-[4vmin] text-neutral-300">{failed ? 'Can’t load the chores. Reload to try again.' : 'Loading…'}</p>
   }
 
-  const chores = sortTasks(data.chores, 'due', now)
+  const view = getDisplayView(data.chores ?? [], now)
+  const nothingDue = view.today.length === 0 && view.week.length === 0
+
   return (
-    <div className="grid gap-[2vmin]">
-      <h1 className="text-[5vmin] font-bold">{data.apartmentName || 'Chores'}</h1>
-      {chores.length === 0 ? <p className="text-[3.6vmin] text-neutral-300">No chores yet.</p> : (
-        <ul className="grid gap-[1.2vmin]">
-          {chores.map((chore) => {
-            const status = getTaskStatus(chore, now)
-            return (
-              <li key={chore.id} className="flex items-baseline justify-between gap-[3vmin] border-b border-neutral-800 pb-[1vmin] text-[3.6vmin]">
-                <span className="font-semibold">{chore.name}{chore.assignedTo ? <span className="font-normal text-neutral-400"> · {chore.assignedTo}</span> : null}</span>
-                <span className={status.tone === 'overdue' ? 'font-bold text-red-400' : 'text-neutral-300'}>{status.label}</span>
-              </li>
-            )
-          })}
-        </ul>
+    <div className="grid h-full grid-rows-[10vh_1fr] gap-[2vh]">
+      <header className="flex items-center justify-between gap-[3vw] border-b border-neutral-700">
+        <h1 className="truncate text-[6vh] leading-[10vh] font-bold">{data.apartmentName || 'Chores'}</h1>
+        <div className="text-right">
+          <p className="text-[6vh] leading-none font-bold tabular-nums">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+          <p className="mt-[0.8vh] text-[3vh] text-neutral-300">{now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        </div>
+      </header>
+      {nothingDue ? (
+        <p className="grid place-content-center text-center text-[7vh] font-bold text-emerald-300">Nothing due. Enjoy the day!</p>
+      ) : (
+        <div className="grid min-h-0 grid-cols-2 gap-[3vw]">
+          <Section title="Today" groups={view.today} empty="All clear today" />
+          <Section title="This week" groups={view.week} empty="Nothing else this week" showDue />
+        </div>
       )}
+    </div>
+  )
+}
+
+// The current time, refreshed so the clock and the day rollover stay right
+function useNow() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), CLOCK_MS)
+    return () => clearInterval(timer)
+  }, [])
+  return now
+}
+
+function Section({ title, groups, empty, showDue = false }) {
+  const { groups: shown, more } = fitGroups(groups, MAX_ROWS)
+  return (
+    <section className="flex min-h-0 flex-col overflow-hidden">
+      <h2 className="h-[6vh] text-[4vh] leading-[6vh] font-bold tracking-wide text-sky-300 uppercase">{title}</h2>
+      {shown.length === 0 ? <p className="text-[3.4vh] text-neutral-400">{empty}</p> : null}
+      {shown.map((group) => (
+        <div key={group.assignee ?? ''}>
+          <h3 className="h-[5.2vh] truncate text-[3vh] leading-[5.2vh] font-semibold tracking-wide text-neutral-400 uppercase">{group.assignee || 'Unassigned'}</h3>
+          {group.items.map((item) => <Row key={item.chore.id} item={item} showDue={showDue} />)}
+        </div>
+      ))}
+      {more > 0 ? <p className="h-[5.2vh] text-[3.2vh] leading-[5.2vh] font-semibold text-neutral-300">+{more} more</p> : null}
+    </section>
+  )
+}
+
+function Row({ item, showDue }) {
+  const { chore, overdue, overdueDays, doneToday, doneBy, dueDate } = item
+  let note = null
+  if (doneToday) note = <span className="text-emerald-300">Done{doneBy ? ` by ${doneBy}` : ''}</span>
+  else if (overdue) note = <span className="font-bold text-red-300">{overdueDays ? `${plural(overdueDays, 'day')} overdue` : 'Never done'}</span>
+  else if (showDue) note = <span className="text-neutral-300">{dueDate.toLocaleDateString([], { weekday: 'long' })}</span>
+  const tone = doneToday ? 'text-neutral-400' : overdue ? 'bg-red-950 border-l-[0.8vh] border-red-400 pl-[1.2vh]' : ''
+  return (
+    <div className={`flex h-[5.2vh] items-center justify-between gap-[2vw] overflow-hidden text-[3.4vh] ${tone}`}>
+      <span className={`truncate leading-[5.2vh] font-semibold ${doneToday ? 'line-through' : ''}`}>{chore.name}</span>
+      <span className="shrink-0">{note}</span>
     </div>
   )
 }
