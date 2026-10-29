@@ -2,6 +2,7 @@
 // whose interceptors attach a Roommate's session token and clear sign-in storage on a 401.
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
+const REQUEST_TIMEOUT_MS = 15 * 1000
 const STORAGE_KEY = 'displayCredential'
 
 // Held here when storage is unavailable (private mode, blocked cookies), so the page still works
@@ -44,7 +45,15 @@ const send = async (path, { method = 'GET', body, credential } = {}) => {
   const headers = {}
   if (body) headers['Content-Type'] = 'application/json'
   if (credential) headers.Authorization = `Bearer ${credential}`
-  const response = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  // A request that stalls on flaky Wi-Fi must fail, or the Display would freeze on old Chores with no offline note
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  let response
+  try {
+    response = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
+  }
   if (!response.ok) throw new DisplayRequestError(response.status)
   return response.json()
 }

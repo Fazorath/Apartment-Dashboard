@@ -9,11 +9,10 @@ import {
   startPairing
 } from '../services/displayApi'
 import { fitGroups, getDisplayView } from '../lib/displayView'
+import { REFRESH_MS, msUntilNextReload, retryDelay } from '../lib/displayRefresh'
 import { plural } from '../lib/taskStatus'
 
 const POLL_MS = 3000
-// How often the Display reads its Chores, which is also how it finds out it was unpaired
-const REFRESH_MS = 60 * 1000
 // How often the clock (and so the day rollover) is checked
 const CLOCK_MS = 15 * 1000
 // Rows that fit under a section heading at the sizes below, a group heading counting as a row
@@ -108,28 +107,49 @@ function Pairing({ onPaired }) {
 
 function Showing({ credential, onUnpaired }) {
   const [data, setData] = useState(null)
-  const [failed, setFailed] = useState(false)
+  const [offlineSince, setOfflineSince] = useState(null)
   const now = useNow()
 
+  // Reads the Chores every minute (a 401 means unpaired). When the server can't be reached or errors,
+  // keeps what is showing, notes since when, and retries with backoff until it answers again.
   useEffect(() => {
     let cancelled = false
-    const load = () => fetchDisplayChores(credential)
-      .then((result) => { if (!cancelled) { setData(result); setFailed(false) } })
-      .catch((error) => {
+    let timer
+    let failures = 0
+    const load = async () => {
+      let delay = REFRESH_MS
+      try {
+        const result = await fetchDisplayChores(credential)
+        if (cancelled) return
+        failures = 0
+        setData(result)
+        setOfflineSince(null)
+      } catch (error) {
         if (cancelled) return
         if (error instanceof DisplayRequestError && error.status === 401) return onUnpaired()
-        setFailed(true) // keeps whatever is already showing
-      })
+        failures += 1
+        delay = retryDelay(failures)
+        setOfflineSince((since) => since ?? new Date())
+      }
+      timer = setTimeout(load, delay)
+    }
     load()
-    const timer = setInterval(load, REFRESH_MS)
     return () => {
       cancelled = true
-      clearInterval(timer)
+      clearTimeout(timer)
     }
   }, [credential, onUnpaired])
 
+  // Reload once a day so the TV picks up a new app version and doesn't slow down over weeks
+  useEffect(() => {
+    // Checked on a short interval rather than one long timer, which a sleeping TV or a clock change could skip
+    const reloadAt = Date.now() + msUntilNextReload()
+    const timer = setInterval(() => { if (Date.now() >= reloadAt) window.location.reload() }, CLOCK_MS)
+    return () => clearInterval(timer)
+  }, [])
+
   if (!data) {
-    return <p className="grid min-h-[90vh] place-content-center text-[4vmin] text-neutral-300">{failed ? 'Can’t load the chores. Reload to try again.' : 'Loading…'}</p>
+    return <p className="grid min-h-[90vh] place-content-center text-[4vmin] text-neutral-300">{offlineSince ? 'Can’t reach the server. Trying again…' : 'Loading…'}</p>
   }
 
   const view = getDisplayView(data.chores ?? [], now)
@@ -142,6 +162,7 @@ function Showing({ credential, onUnpaired }) {
         <div className="text-right">
           <p className="text-[6vh] leading-none font-bold tabular-nums">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
           <p className="mt-[0.8vh] text-[3vh] text-neutral-300">{now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          {offlineSince ? <p role="status" className="text-[2.4vh] text-amber-300">Offline since {offlineSince.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p> : null}
         </div>
       </header>
       {nothingDue ? (
