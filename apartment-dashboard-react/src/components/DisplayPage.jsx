@@ -202,14 +202,21 @@ function useWakeLock() {
     if (!('wakeLock' in navigator)) return undefined
     let lock = null
     let released = false
+    let pending = false
 
     const request = async () => {
-      if (released || document.visibilityState !== 'visible') return
+      if (released || pending || (lock && !lock.released) || document.visibilityState !== 'visible') return
+      pending = true
       try {
-        lock = await navigator.wakeLock.request('screen')
-        if (released) lock.release().catch(() => {})
+        const next = await navigator.wakeLock.request('screen')
+        if (released) return next.release().catch(() => {})
+        lock = next
+        // The system can drop the lock while the page stays visible: take it again
+        next.addEventListener('release', () => { if (lock === next) { lock = null; request() } })
       } catch {
         // Refused (battery saver, no permission): nothing to show for it
+      } finally {
+        pending = false
       }
     }
     // The browser drops the lock when the page is hidden, so ask again on return
