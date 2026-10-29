@@ -10,6 +10,7 @@ import {
 } from '../services/displayApi'
 import { fitGroups, getDisplayView } from '../lib/displayView'
 import { REFRESH_MS, msUntilNextReload, retryDelay } from '../lib/displayRefresh'
+import { isNight, shiftFor } from '../lib/screenCare'
 import { plural } from '../lib/taskStatus'
 
 const POLL_MS = 3000
@@ -17,6 +18,8 @@ const POLL_MS = 3000
 const CLOCK_MS = 15 * 1000
 // Rows that fit under a section heading at the sizes below, a group heading counting as a row
 const MAX_ROWS = 14
+// How often the layout moves a little so no heading stays on the same pixels
+const SHIFT_MS = 3 * 60 * 1000
 
 // Opened on the TV at /display, whether or not anyone is signed in there.
 // Shows a Pairing code until a Roommate pairs it, then the Apartment's Chores. Read-only.
@@ -34,11 +37,17 @@ export default function DisplayPage() {
     setCredential(null)
   }, [])
 
+  const dimmed = isNight(useNow())
+  const { x, y } = shiftFor(useShiftStep())
+  useWakeLock()
+
   return (
-    <main className="box-border h-screen cursor-none overflow-hidden bg-black p-[3vh] text-white">
-      {credential
-        ? <Showing credential={credential} onUnpaired={unpaired} />
-        : <Pairing onPaired={paired} />}
+    <main className={`box-border h-screen cursor-none overflow-hidden bg-black p-[3vh] text-white transition-[filter] duration-1000 ${dimmed ? 'brightness-[0.25]' : ''}`}>
+      <div className="h-full" style={{ transform: `translate(${x}px, ${y}px)` }}>
+        {credential
+          ? <Showing credential={credential} onUnpaired={unpaired} />
+          : <Pairing onPaired={paired} />}
+      </div>
     </main>
   )
 }
@@ -175,6 +184,45 @@ function Showing({ credential, onUnpaired }) {
       )}
     </div>
   )
+}
+
+// Counts up every few minutes, to move the layout
+function useShiftStep() {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setStep((current) => current + 1), SHIFT_MS)
+    return () => clearInterval(timer)
+  }, [])
+  return step
+}
+
+// Asks the browser to keep the screen awake while the page is visible; silent where it can't
+function useWakeLock() {
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return undefined
+    let lock = null
+    let released = false
+
+    const request = async () => {
+      if (released || document.visibilityState !== 'visible') return
+      try {
+        lock = await navigator.wakeLock.request('screen')
+        if (released) lock.release().catch(() => {})
+      } catch {
+        // Refused (battery saver, no permission): nothing to show for it
+      }
+    }
+    // The browser drops the lock when the page is hidden, so ask again on return
+    const onVisible = () => { if (document.visibilityState === 'visible') request() }
+
+    request()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      released = true
+      document.removeEventListener('visibilitychange', onVisible)
+      lock?.release().catch(() => {})
+    }
+  }, [])
 }
 
 // The current time, refreshed so the clock and the day rollover stay right

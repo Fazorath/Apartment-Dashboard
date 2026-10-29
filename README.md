@@ -160,13 +160,15 @@ FRONTEND_URL=http://localhost:5173
 - Sign in with Google
 - Sign in with Apple
 - Optional two-factor login (authenticator app)
-- Living-room Display: pair a TV as a read-only view, with status, unpairing and rate-limited pairing
+- Living-room Display: pair a TV as a read-only view, with status, unpairing and rate-limited pairing, a dim at night (23:00 to 07:00) and a small layout shift against burn-in
 
 ### 🚧 In Progress / Planned
 Work is tracked on the [Apartment Dashboard Roadmap](https://github.com/users/Fazorath/projects/6) board.
 
 - **Living-room Display** ([#40](https://github.com/Fazorath/Apartment-Dashboard/issues/40))
 - **Self-hosting on the home server** ([#49](https://github.com/Fazorath/Apartment-Dashboard/issues/49))
+
+**Setting up the Display on a Fire TV:** open `/display` in Silk and pair it from Settings. Set the Fire TV screensaver to **Never** (Settings → Display & Sounds → Screensaver → Start Time), since a web page can't change that. The page asks the browser to keep the screen awake where it can.
 
 ### 🔧 Known Issues
 - None at the moment.
