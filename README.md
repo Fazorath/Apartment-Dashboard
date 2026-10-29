@@ -153,17 +153,20 @@ FRONTEND_URL=http://localhost:5173
 - Chore list shown first on mobile
 - Narrower search bar
 - Detail drawer shows only the Notes section (no separate description)
+- Backend API test harness
+- Stronger password rules
+- Email verification
+- Forgot password flow
+- Sign in with Google
+- Sign in with Apple
+- Optional two-factor login (authenticator app)
+- Living-room Display: pair a TV as a read-only view, with status, unpairing and rate-limited pairing
 
 ### 🚧 In Progress / Planned
 Work is tracked on the [Apartment Dashboard Roadmap](https://github.com/users/Fazorath/projects/6) board.
 
-- **Backend API test harness** ([#9](https://github.com/Fazorath/Apartment-Dashboard/issues/9))
-- **Stronger password rules** ([#10](https://github.com/Fazorath/Apartment-Dashboard/issues/10))
-- **Mailer and email verification** ([#11](https://github.com/Fazorath/Apartment-Dashboard/issues/11))
-- **Sign in with Google** ([#13](https://github.com/Fazorath/Apartment-Dashboard/issues/13))
-- **Sign in with Apple** ([#14](https://github.com/Fazorath/Apartment-Dashboard/issues/14))
-- **Optional two-factor login** ([#15](https://github.com/Fazorath/Apartment-Dashboard/issues/15))
-- **TV display mode for the living room** ([#25](https://github.com/Fazorath/Apartment-Dashboard/issues/25))
+- **Living-room Display** ([#40](https://github.com/Fazorath/Apartment-Dashboard/issues/40))
+- **Self-hosting on the home server** ([#49](https://github.com/Fazorath/Apartment-Dashboard/issues/49))
 
 ### 🔧 Known Issues
 - None at the moment.
