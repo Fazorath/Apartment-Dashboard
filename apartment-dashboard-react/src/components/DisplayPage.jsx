@@ -142,8 +142,10 @@ function Showing({ credential, onUnpaired }) {
 
   // Reload once a day so the TV picks up a new app version and doesn't slow down over weeks
   useEffect(() => {
-    const timer = setTimeout(() => window.location.reload(), msUntilNextReload())
-    return () => clearTimeout(timer)
+    // Checked on a short interval rather than one long timer, which a sleeping TV or a clock change could skip
+    const reloadAt = Date.now() + msUntilNextReload()
+    const timer = setInterval(() => { if (Date.now() >= reloadAt) window.location.reload() }, CLOCK_MS)
+    return () => clearInterval(timer)
   }, [])
 
   if (!data) {
