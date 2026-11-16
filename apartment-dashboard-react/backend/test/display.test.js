@@ -254,7 +254,7 @@ describe('Display status and unpairing', () => {
   })
 
   it('moves last-seen forward after a Display Chores read', async () => {
-    const roommate = await openApartment('DISPL1', 'Seen Flat')
+    const roommate = await openApartment('DISPS1', 'Seen Flat')
     const credential = await pairDisplay(roommate)
     expect((await status(roommate.token)).body.lastSeen).toBeNull()
 
