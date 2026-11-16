@@ -119,6 +119,7 @@ function SheetPanel({ onClose, variant, labelledBy, children }) {
 // Another sheet on top (a confirm dialog) owns Escape, outside taps and focus, so this one stands down.
 function PhoneSheet({ open, onClose, variant, labelledBy, children }) {
   const { id } = useSheetStack(open, true)
+  // Vaul has no Drawer.Trigger here (sheets open from state), so Radix has nothing to return focus to.
   const returnFocusTo = useRef(null)
 
   useEffect(() => {
