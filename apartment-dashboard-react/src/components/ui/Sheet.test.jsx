@@ -68,6 +68,20 @@ describe.each([
     expect(closeSheet).not.toHaveBeenCalled()
   })
 
+  it('covers the sheet with its own scrim and while a confirm is open', async () => {
+    setPhone(isPhone)
+    render(
+      <Sheet open onClose={() => {}} labelledBy="s">
+        <h2 id="s">Chore</h2>
+        <Sheet open onClose={() => {}} variant="dialog" labelledBy="c"><h2 id="c">Delete?</h2><button data-autofocus>Cancel</button></Sheet>
+      </Sheet>,
+    )
+    await screen.findByRole('alertdialog')
+    // The confirm's backdrop is rendered (base-ui hides nested backdrops unless forced) and sits under the confirm.
+    const scrim = document.querySelector('.bg-scrim.z-\\[60\\]')
+    expect(scrim).toBeTruthy()
+  })
+
   it('returns focus into the sheet when the confirm on top closes', async () => {
     setPhone(isPhone)
     const Both = ({ confirm }) => (

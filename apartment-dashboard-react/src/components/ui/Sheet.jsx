@@ -42,6 +42,7 @@ function SheetPanel({ onClose, variant, labelledBy, children }) {
     <Dialog.Root open onOpenChange={(next) => { if (!next) onClose() }}>
       <Dialog.Portal>
         <Dialog.Backdrop
+          forceRender
           render={(
             <MotionDiv
               className={`pointer-events-auto fixed inset-0 bg-scrim ${isDialog ? 'z-[60]' : 'z-40'}`}
