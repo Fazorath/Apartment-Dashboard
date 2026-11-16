@@ -27,7 +27,7 @@ const escape = () => fireEvent.keyDown(document.activeElement || document.body, 
 
 describe.each([
   ['phone (Vaul bottom sheet)', true],
-  ['desktop (hand-built drawer)', false],
+  ['desktop (base-ui drawer)', false],
 ])('Sheet on %s', (_name, isPhone) => {
   it('closes on Escape', () => {
     setPhone(isPhone)
@@ -54,15 +54,49 @@ describe.each([
     setPhone(isPhone)
     const closeSheet = vi.fn()
     const closeConfirm = vi.fn()
+    // Like TaskModal and SettingsSheet: the confirm is a React child of the sheet it opens over.
     const view = (
-      <>
-        <Sheet open onClose={closeSheet} labelledBy="s"><h2 id="s">Chore</h2><button>Delete</button></Sheet>
+      <Sheet open onClose={closeSheet} labelledBy="s">
+        <h2 id="s">Chore</h2>
+        <button>Delete</button>
         <Sheet open onClose={closeConfirm} variant="dialog" labelledBy="c"><h2 id="c">Delete?</h2><button data-autofocus>Cancel</button></Sheet>
-      </>
+      </Sheet>
     )
     render(view)
     escape()
     expect(closeConfirm).toHaveBeenCalledTimes(1)
     expect(closeSheet).not.toHaveBeenCalled()
+  })
+
+  it('covers the sheet with its own scrim and while a confirm is open', async () => {
+    setPhone(isPhone)
+    render(
+      <Sheet open onClose={() => {}} labelledBy="s">
+        <h2 id="s">Chore</h2>
+        <Sheet open onClose={() => {}} variant="dialog" labelledBy="c"><h2 id="c">Delete?</h2><button data-autofocus>Cancel</button></Sheet>
+      </Sheet>,
+    )
+    await screen.findByRole('alertdialog')
+    // The confirm's backdrop is rendered (base-ui hides nested backdrops unless forced) and sits under the confirm.
+    const scrim = document.querySelector('.bg-scrim.z-\\[60\\]')
+    expect(scrim).toBeTruthy()
+  })
+
+  it('returns focus into the sheet when the confirm on top closes', async () => {
+    setPhone(isPhone)
+    const Both = ({ confirm }) => (
+      <Sheet open onClose={() => {}} labelledBy="s">
+        <h2 id="s">Chore</h2>
+        <button data-autofocus>Delete</button>
+        <Sheet open={confirm} onClose={() => {}} variant="dialog" labelledBy="c"><h2 id="c">Delete?</h2><button data-autofocus>Cancel</button></Sheet>
+      </Sheet>
+    )
+    const { rerender } = render(<Both confirm={false} />)
+    const opener = await screen.findByText('Delete')
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener))
+    rerender(<Both confirm />)
+    await vi.waitFor(() => expect(screen.getByRole('alertdialog').contains(document.activeElement)).toBe(true))
+    rerender(<Both confirm={false} />)
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener))
   })
 })
