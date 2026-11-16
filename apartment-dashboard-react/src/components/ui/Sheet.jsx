@@ -1,16 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Drawer } from 'vaul'
-import { FocusScope } from '@radix-ui/react-focus-scope'
+import { Dialog } from '@base-ui/react/dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import Button from './Button'
-import { hasPhoneSheetOpen, isTop, stackSize, useSheetStack } from '../../lib/sheetStack'
 
 const MotionDiv = motion.div
 const MotionAside = motion.aside
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const SPRING = { type: 'spring', stiffness: 260, damping: 28 }
 
 const layout = (variant) => {
@@ -32,95 +30,68 @@ const layout = (variant) => {
   }
 }
 
+// Desktop drawer, centered modal and confirm dialog: base-ui Dialog does the focus trap, Escape, outside press,
+// scroll lock and focus return. framer-motion keeps the spring: AnimatePresence holds the panel through its exit.
 function SheetPanel({ onClose, variant, labelledBy, children }) {
-  const { id } = useSheetStack()
   const panelRef = useRef(null)
-  const onCloseRef = useRef(onClose)
   const { className, motion: anim } = layout(variant)
   const isDialog = variant === 'dialog'
-  // A dialog opened over a Vaul sheet must take over its focus trap, or focus is pulled back into the sheet.
-  const [overPhoneSheet] = useState(() => isDialog && hasPhoneSheetOpen())
-
-  useEffect(() => {
-    onCloseRef.current = onClose
-  }, [onClose])
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement
-    document.body.style.overflow = 'hidden'
-
-    const panel = panelRef.current
-    const target = panel.querySelector('[data-autofocus]') || panel.querySelector(FOCUSABLE) || panel
-    // Next frame: a phone sheet underneath needs a render to release its focus trap first.
-    const frame = requestAnimationFrame(() => target.focus({ preventScroll: true }))
-
-    const onKeyDown = (event) => {
-      if (!isTop(id)) return
-      if (event.key === 'Escape') {
-        event.stopPropagation()
-        onCloseRef.current()
-      }
-      if (event.key === 'Tab') {
-        const items = [...panel.querySelectorAll(FOCUSABLE)]
-        if (!items.length) return
-        const first = items[0]
-        const last = items[items.length - 1]
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault()
-          last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first.focus()
-        }
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-
-    return () => {
-      cancelAnimationFrame(frame)
-      document.removeEventListener('keydown', onKeyDown)
-      if (!stackSize()) document.body.style.overflow = ''
-      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus({ preventScroll: true })
-    }
-  }, [id])
-
   const Panel = variant === 'drawer' ? MotionAside : MotionDiv
 
-  const panel = (
-    <Panel
-      ref={panelRef}
-      role={isDialog ? 'alertdialog' : 'dialog'}
-      aria-modal="true"
-      aria-labelledby={labelledBy}
-      tabIndex={-1}
-      className={`pointer-events-auto fixed flex flex-col border-line bg-surface text-ink shadow-overlay ${isDialog ? 'z-[70]' : 'z-50'} ${className}`}
-      {...anim}
-    >
-      {children}
-    </Panel>
-  )
-
   return (
-    <>
-      <MotionDiv
-        className={`pointer-events-auto fixed inset-0 bg-scrim ${isDialog ? 'z-[60]' : 'z-40'}`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-        onClick={onClose}
-      />
-      {overPhoneSheet ? <FocusScope trapped loop>{panel}</FocusScope> : panel}
-    </>
+    <Dialog.Root open onOpenChange={(next) => { if (!next) onClose() }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop
+          render={(
+            <MotionDiv
+              className={`pointer-events-auto fixed inset-0 bg-scrim ${isDialog ? 'z-[60]' : 'z-40'}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+            />
+          )}
+        />
+        <Dialog.Popup
+          role={isDialog ? 'alertdialog' : 'dialog'}
+          aria-labelledby={labelledBy}
+          initialFocus={() => panelRef.current?.querySelector('[data-autofocus]') ?? true}
+          render={(
+            <Panel
+              ref={panelRef}
+              className={`pointer-events-auto fixed flex flex-col border-line bg-surface text-ink shadow-overlay ${isDialog ? 'z-[70]' : 'z-50'} ${className}`}
+              {...anim}
+            />
+          )}
+        >
+          {children}
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
 // Phone bottom sheet: Vaul gives drag-to-close, backdrop tap, Escape, focus-in and focus-return.
-// Another sheet on top (a confirm dialog) owns Escape, outside taps and focus, so this one stands down.
+// A dialog on top (a confirm) owns Escape and outside taps, so this one stands down while one is open.
+const dialogOnTop = () => Boolean(document.querySelector('[role="alertdialog"]'))
 function PhoneSheet({ open, onClose, variant, labelledBy, children }) {
-  const { id } = useSheetStack(open, true)
   // Vaul has no Drawer.Trigger here (sheets open from state), so Radix has nothing to return focus to.
   const returnFocusTo = useRef(null)
+
+  // Workaround: Vaul's Radix focus trap pulls focus back from a base-ui dialog opened on top. Focus moving into
+  // a dialog never reaches the trap's document listeners, so the dialog keeps focus and Vaul's trap resumes when it closes.
+  useEffect(() => {
+    if (!open) return undefined
+    const inDialog = (el) => Boolean(el?.closest?.('[role="alertdialog"]'))
+    const shieldIn = (event) => { if (inDialog(event.target)) event.stopPropagation() }
+    const shieldOut = (event) => { if (inDialog(event.relatedTarget)) event.stopPropagation() }
+    window.addEventListener('focusin', shieldIn, true)
+    window.addEventListener('focusout', shieldOut, true)
+    return () => {
+      window.removeEventListener('focusin', shieldIn, true)
+      window.removeEventListener('focusout', shieldOut, true)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -145,8 +116,8 @@ function PhoneSheet({ open, onClose, variant, labelledBy, children }) {
               target.focus({ preventScroll: true })
             }
           }}
-          onEscapeKeyDown={(event) => { if (!isTop(id)) event.preventDefault() }}
-          onInteractOutside={(event) => { if (!isTop(id)) event.preventDefault() }}
+          onEscapeKeyDown={(event) => { if (dialogOnTop()) event.preventDefault() }}
+          onInteractOutside={(event) => { if (dialogOnTop()) event.preventDefault() }}
           className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-sheet border border-line bg-surface pb-[env(safe-area-inset-bottom)] text-ink shadow-overlay ${variant === 'drawer' ? 'h-[90%]' : 'max-h-[92%]'}`}
         >
           <div className="mx-auto mt-2 h-1 w-10 flex-none rounded-full bg-line" aria-hidden="true" />
