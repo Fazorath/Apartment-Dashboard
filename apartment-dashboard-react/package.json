@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "vitest run",
+    "test:backend": "npm --prefix backend test"
   },
   "dependencies": {
     "@radix-ui/react-focus-scope": "^1.3.1",

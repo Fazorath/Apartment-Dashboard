@@ -130,6 +130,7 @@ FRONTEND_URL=http://localhost:5173
 - `npm run dev` – start Vite dev server
 - `npm run build` – production build
 - `npm run preview` – preview production build
+- `npm test` – **run all tests** (frontend, then backend); exits non-zero on any failure and needs no network once installed. One-time install first: `npm ci` here and `npm ci --prefix backend`. Also `npm run test:frontend` / `npm run test:backend`.
 
 **Backend** (run inside `apartment-dashboard-react/backend`):
 - `npm run dev` – start API with nodemon

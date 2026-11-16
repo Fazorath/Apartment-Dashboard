@@ -18,6 +18,10 @@ Run everything from `apartment-dashboard-react/`.
 - Anything that stores or shows a roommate's personal data (email, name) is a privacy question: the user decides, with a question card.
 - The display board runs unattended on a wall screen: no layout may depend on hover or mouse; verify at 1920x1080 and in the browser's kiosk mode.
 
+## Tests
+- Run everything, offline: `cd apartment-dashboard-react && npm test` (frontend Vitest, then backend Vitest with in-memory MongoDB). Exits non-zero on any failure. One-time install: `npm ci` in `apartment-dashboard-react` and `npm ci --prefix backend`. Single suites: `npm run test:frontend`, `npm run test:backend`.
+- In a non-interactive shell, `source ~/.nvm/nvm.sh` first.
+
 ## Conventions
 - Issues and board: `Fazorath/Apartment-Dashboard`, "Apartment Dashboard Roadmap" (#6, Status + Priority). Labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
 - Branch `<n>-<slug>` (older branches are `feat-<n>-<slug>`; either is fine, pick the first for new work).
