@@ -14,6 +14,10 @@ export default defineConfig({
       }
     }
   },
+  test: {
+    // The backend has its own suite (backend/), run from that folder.
+    include: ['src/**/*.test.{js,jsx}'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: true

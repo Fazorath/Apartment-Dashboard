@@ -14,13 +14,14 @@ import Card from './ui/Card'
 import Button from './ui/Button'
 import Segmented from './ui/Segmented'
 import Avatar from './ui/Avatar'
-import Toast from './ui/Toast'
+import Toaster from './ui/Toaster'
+import { notify, ACTION_TOAST_MS } from '../lib/notify'
 import ConfirmDialog from './ui/ConfirmDialog'
 import { daysBetween, DONE_WINDOW_DAYS, getTaskStatus, GROUPS, isDoneToday, plural, SORT_OPTIONS, sortTasks, toLocalDate } from '../lib/taskStatus'
 import { displayName, sameName } from '../lib/people'
 import useChoreSort from '../hooks/useChoreSort'
 
-const HOLD_MS = 5000
+const HOLD_MS = ACTION_TOAST_MS // the undo window matches how long the Undo toast stays
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
@@ -72,9 +73,7 @@ export default function Dashboard() {
   const [modal, setModal] = useState({ open: false, task: null })
   const [toDelete, setToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
-  const [toast, setToast] = useState(null)
   const holdTimers = useRef({})
-  const toastTimer = useRef(null)
 
   const settingsOpen = location.pathname === '/settings'
   const openTask = tasks.find((t) => t._id === taskId) || null
@@ -98,14 +97,7 @@ export default function Dashboard() {
     const timers = holdTimers.current
     return () => {
       Object.values(timers).forEach(clearTimeout)
-      clearTimeout(toastTimer.current)
     }
-  }, [])
-
-  const showToast = useCallback((message, action) => {
-    clearTimeout(toastTimer.current)
-    setToast({ id: Date.now(), message, ...action })
-    toastTimer.current = setTimeout(() => setToast(null), action ? HOLD_MS : 2500)
   }, [])
 
   const replaceTask = useCallback((updated) => {
@@ -133,12 +125,12 @@ export default function Dashboard() {
       })
       release(task._id)
       replaceTask(updated)
-      showToast(`“${task.name}” marked not done`)
+      notify(`“${task.name}” marked not done`)
     } catch (err) {
       console.error('Failed to undo completion:', err)
-      showToast('Couldn’t undo. Try again.')
+      notify('Couldn’t undo. Try again.')
     }
-  }, [release, replaceTask, showToast])
+  }, [release, replaceTask])
 
   const toggleDone = useCallback(async (task) => {
     if (isDoneToday(task)) return undoDone(task)
@@ -150,21 +142,21 @@ export default function Dashboard() {
       setHeld((prev) => ({ ...prev, [task._id]: before }))
       clearTimeout(holdTimers.current[task._id])
       holdTimers.current[task._id] = setTimeout(() => release(task._id), HOLD_MS)
-      showToast(`Marked “${task.name}” done`, { actionLabel: 'Undo', onAction: () => undoDone(updated) })
+      notify(`Marked “${task.name}” done`, { actionLabel: 'Undo', onAction: () => undoDone(updated) })
     } catch (err) {
       console.error('Failed to mark task done:', err)
-      showToast('Couldn’t mark that done. Try again.')
+      notify('Couldn’t mark that done. Try again.')
     }
-  }, [release, replaceTask, showToast, undoDone])
+  }, [release, replaceTask, undoDone])
 
   const togglePaused = async (task) => {
     try {
       const updated = await updateTask({ id: task._id, active: task.active === false })
       replaceTask(updated)
-      showToast(updated.active === false ? `Paused “${task.name}”` : `Resumed “${task.name}”`)
+      notify(updated.active === false ? `Paused “${task.name}”` : `Resumed “${task.name}”`)
     } catch (err) {
       console.error('Failed to pause task:', err)
-      showToast('Couldn’t update that chore. Try again.')
+      notify('Couldn’t update that chore. Try again.')
     }
   }
 
@@ -173,12 +165,12 @@ export default function Dashboard() {
     try {
       await deleteTask(toDelete._id)
       setTasks((prev) => prev.filter((t) => t._id !== toDelete._id))
-      showToast(`Deleted “${toDelete.name}”`)
+      notify(`Deleted “${toDelete.name}”`)
       setToDelete(null)
       navigate('/')
     } catch (err) {
       console.error('Failed to delete task:', err)
-      showToast('Couldn’t delete that chore. Try again.')
+      notify('Couldn’t delete that chore. Try again.')
     } finally {
       setDeleting(false)
     }
@@ -188,11 +180,11 @@ export default function Dashboard() {
     if (modal.task) {
       const updated = await updateTask({ id: modal.task._id, ...data })
       replaceTask(updated)
-      showToast(`Saved “${updated.name}”`)
+      notify(`Saved “${updated.name}”`)
     } else {
       const created = await createTask(data)
       setTasks((prev) => [...prev, created])
-      showToast(`Added “${created.name}”`)
+      notify(`Added “${created.name}”`)
     }
     setModal((m) => ({ ...m, open: false }))
   }
@@ -475,7 +467,7 @@ export default function Dashboard() {
         onConfirm={confirmDelete}
       />
 
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
+      <Toaster />
     </AppShell>
   )
 }

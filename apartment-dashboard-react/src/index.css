@@ -157,3 +157,10 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Sonner switches to its phone offset at 600px; the dashboard's phone layout (tab bar) starts at 639px. */
+@media (min-width: 601px) and (max-width: 639px) {
+  .dashboard-toaster[data-sonner-toaster] {
+    --offset-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+  }
+}
