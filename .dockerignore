@@ -1,0 +1,11 @@
+.git
+.github
+.claude
+.vscode
+docs
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/coverage
+**/*.log

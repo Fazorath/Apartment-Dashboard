@@ -1,6 +1,15 @@
 import 'dotenv/config'
-import app from './app.js'
-import dbManager from './utils/dbManager.js'
+import { checkProductionConfig } from './config.js'
+
+const missing = checkProductionConfig(process.env)
+if (missing.length) {
+  console.error(`❌ Refusing to start in production: ${missing.join(', ')} not set`)
+  process.exit(1)
+}
+
+// Imported after the check so a bad config fails before anything connects
+const { default: app } = await import('./app.js')
+const { default: dbManager } = await import('./utils/dbManager.js')
 
 const PORT = process.env.PORT || 3000
 

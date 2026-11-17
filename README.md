@@ -20,6 +20,7 @@ This is one of my first fully built apps. The goal is to demonstrate end‑to‑
 - Quick start
 - Project structure
 - Configuration
+- Deploy with Docker
 - Roadmap
 - Contributing
 - License
@@ -135,6 +136,35 @@ FRONTEND_URL=http://localhost:5173
 **Backend** (run inside `apartment-dashboard-react/backend`):
 - `npm run dev` – start API with nodemon
 - `npm start` – start API with Node
+
+---
+
+## Deploy with Docker
+`docker-compose.yml` runs three services on a private network: `app` (the API, which also serves the built frontend from the same origin), `mongo` (pinned `mongo:8.0.38`, no published port, no auth) and `mongo-backup` (a nightly `mongodump`, last 7 kept). Only the app publishes a port, `${BIND_ADDR:-127.0.0.1}:${APP_PORT:-8457}`; put a reverse proxy in front of it.
+
+**Env file.** Copy `deploy.env.example` to a path outside git (`chmod 600`) and fill in `JWT_SECRET` (`openssl rand -hex 32`), `FRONTEND_URL` (the public origin) and `SMTP_*` / `MAIL_FROM`. Set `TRUST_PROXY=1` behind one proxy so rate limits see each Roommate's own IP. In production the server refuses to start without `JWT_SECRET` and `MONGODB_URI`.
+
+**Variables for `docker compose`:**
+
+| Variable | Default | What |
+|---|---|---|
+| `DATA_DIR` | required | Host folder; holds `mongo/` (database) and `backups/` (dumps) |
+| `APP_ENV_FILE` | `./.env.production` | The env file above |
+| `BIND_ADDR` | `127.0.0.1` | Host address the app port binds to |
+| `APP_PORT` | `8457` | Host port |
+
+**Start or update:**
+```bash
+git pull
+DATA_DIR=/path/to/data APP_ENV_FILE=/path/to/app.env docker compose up -d --build
+```
+
+**Backups.** A dump is taken when the service starts and again at 03:00 UTC; each lands in `$DATA_DIR/backups/dump-<timestamp>.archive.gz`; dumps older than 7 days are deleted. Take one now with `docker compose exec mongo-backup sh /backup.sh`.
+
+**Restore** a dump (this replaces what is in the database):
+```bash
+docker compose exec -T mongo mongorestore --archive --gzip --drop < "$DATA_DIR/backups/dump-<timestamp>.archive.gz"
+```
 
 ---
 
