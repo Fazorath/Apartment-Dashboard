@@ -31,3 +31,6 @@ coverage/
 
 # Secret scan output
 gitleaks-report.json
+
+# Deploy secrets
+.env.production
