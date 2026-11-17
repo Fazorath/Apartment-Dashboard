@@ -14,7 +14,8 @@ services:
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${APP_PORT:-8457}:3000"
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks: [internal]
 
   mongo:
@@ -22,21 +23,29 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:?set DATA_DIR to the host folder for database data and dumps}/mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks: [internal]
 
   mongo-backup:
     image: mongo:8.0.38
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     volumes:
       - ${DATA_DIR:?set DATA_DIR}/backups:/backups
       - ./deploy/backup.sh:/backup.sh:ro
-    # Sleeps until 03:00 UTC, dumps, repeats
+    # Dumps at start, then every night at 03:00 UTC
     entrypoint:
       - sh
       - -c
       - |
+        sh /backup.sh || echo "backup failed" >&2
         while true; do
           now=$$(date -u +%s)
           wait=$$(( (86400 + 10800 - now % 86400) % 86400 ))

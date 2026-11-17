@@ -12,7 +12,11 @@ import { authenticateToken, requireAdmin } from './middleware/auth.js'
 import { appleReturn } from './utils/appleOAuth.js'
 
 // TRUST_PROXY is a hop count ("1" for one reverse proxy) or any other value Express accepts
-const parseTrustProxy = (value) => (/^\d+$/.test(value) ? Number(value) : value)
+const parseTrustProxy = (value) => {
+  if (/^\d+$/.test(value)) return Number(value)
+  if (value === 'true' || value === 'false') return value === 'true'
+  return value
+}
 
 /**
  * Builds the Express app. `env` is read once here, so tests can build apps with
@@ -33,7 +37,8 @@ export const buildApp = (env = process.env) => {
   })
 
   // Middleware
-  app.use(limiter)
+  // Only the API is limited: a page load fetches many assets and Docker polls /api/health
+  app.use('/api', limiter)
   // Apple posts the browser here from appleid.apple.com, which CORS below would turn away
   app.post('/api/auth/apple/return', express.urlencoded({ extended: false }), appleReturn)
   // Allow multiple dev origins
@@ -84,7 +89,8 @@ export const buildApp = (env = process.env) => {
   if (staticDir && fs.existsSync(path.join(staticDir, 'index.html'))) {
     app.use(express.static(staticDir))
     // Deep links and reloads (/display, /verify-email?...) belong to the client router
-    app.get(/^\/(?!api(\/|$))/, (req, res) => res.sendFile(path.join(staticDir, 'index.html')))
+    // A missing file (a stale hashed asset after a redeploy) must 404, not get HTML
+    app.get(/^\/(?!api(\/|$))[^.]*$/, (req, res) => res.sendFile(path.join(staticDir, 'index.html')))
   }
 
   // Error handling middleware (Express needs all four args to treat it as one)

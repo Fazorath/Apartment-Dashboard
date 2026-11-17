@@ -159,7 +159,7 @@ git pull
 DATA_DIR=/path/to/data APP_ENV_FILE=/path/to/app.env docker compose up -d --build
 ```
 
-**Backups.** At 03:00 UTC a dump lands in `$DATA_DIR/backups/dump-<timestamp>.archive.gz`; dumps older than 7 days are deleted. Take one now with `docker compose exec mongo-backup sh /backup.sh`.
+**Backups.** A dump is taken when the service starts and again at 03:00 UTC; each lands in `$DATA_DIR/backups/dump-<timestamp>.archive.gz`; dumps older than 7 days are deleted. Take one now with `docker compose exec mongo-backup sh /backup.sh`.
 
 **Restore** a dump (this replaces what is in the database):
 ```bash

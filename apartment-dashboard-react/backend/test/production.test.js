@@ -45,6 +45,11 @@ describe('Serving the built frontend', () => {
     expect(res.body).toEqual({ error: 'Route not found' })
   })
 
+  it('404s a missing asset instead of answering with the index', async () => {
+    const res = await request(app).get('/assets/old-hash.js')
+    expect(res.status).toBe(404)
+  })
+
   it('still serves the API', async () => {
     const res = await request(app).get('/api/health')
     expect(res.status).toBe(200)
@@ -81,6 +86,13 @@ describe('Behind a reverse proxy', () => {
     const app = buildApp({})
     for (let i = 0; i < 10; i++) expect((await start(app, IPS[0])).status).toBe(201)
     expect((await start(app, IPS[1])).status).toBe(429)
+  })
+})
+
+describe('TRUST_PROXY values', () => {
+  it('accepts true and false without crashing', () => {
+    expect(() => buildApp({ TRUST_PROXY: 'true' })).not.toThrow()
+    expect(() => buildApp({ TRUST_PROXY: 'false' })).not.toThrow()
   })
 })
 
